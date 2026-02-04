@@ -15,8 +15,6 @@
     "cors": "^2.8.6",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
-    "firebase": "^12.8.0",
-    "firebase-admin": "^13.6.0",
     "install": "^0.13.0",
     "npm": "^11.8.0",
     "resend": "^6.9.1"
