@@ -93,7 +93,7 @@ if (process.env.NODE_ENV === "production") {
 app.listen(PORT, async () => {
   await connectDB(); // Ensure MongoDB connects before accepting traffic
 
-  console.log(`🚀 PayNidhi Backend running at http://localhost:${PORT}`);
+  console.log(`🚀 PayNidhi Server running on port ${PORT}`);
   console.log(`🗄️  MongoDB: Connected`);
   console.log(`🛡️  Auth: Clerk Mode`);
 });
