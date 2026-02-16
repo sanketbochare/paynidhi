@@ -5,7 +5,7 @@ import connectDB from "./lib/db.js";
 
 // Import Routes
 import invoiceRoutes from "./routes/invoice.handler.js"; 
-import authRoutes from "./routes/auth.handler.js";
+import authRoutes from "./routes/auth.routes.js";
 
 const app = express();
 
