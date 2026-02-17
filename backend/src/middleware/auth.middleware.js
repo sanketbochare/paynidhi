@@ -2,29 +2,36 @@ import jwt from "jsonwebtoken";
 import Seller from "../models/Seller.model.js";
 import Lender from "../models/Lender.model.js";
 
-// 🛡️ PROTECT: Verifies Token & Finds User
 export const protect = async (req, res, next) => {
   let token;
 
   if (req.headers.authorization && req.headers.authorization.startsWith("Bearer")) {
     try {
-      // 1. Get token from header
       token = req.headers.authorization.split(" ")[1];
 
-      // 2. Verify token
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      
+      // 🔍 DEBUG LOGS (Remove these later)
+      console.log("------------------------------------------------");
+      console.log("1. Decoded Token:", decoded); 
 
-      // 3. Find User (Check Seller first, then Lender)
-      // Note: We included 'role' in the token payload during login, so we use it here.
       if (decoded.role === "seller") {
+        console.log("2. Searching in SELLER collection...");
         req.user = await Seller.findById(decoded.id).select("-password");
       } else if (decoded.role === "lender") {
+        console.log("2. Searching in LENDER collection...");
         req.user = await Lender.findById(decoded.id).select("-password");
+      } else {
+        console.log("❌ Error: Token has no valid role:", decoded.role);
       }
 
       if (!req.user) {
+        console.log("❌ User NOT found in DB. ID was:", decoded.id);
         return res.status(401).json({ error: "Not authorized, user not found" });
       }
+      
+      console.log("✅ User Found:", req.user.email);
+      console.log("------------------------------------------------");
 
       next();
     } catch (error) {
@@ -35,7 +42,7 @@ export const protect = async (req, res, next) => {
     res.status(401).json({ error: "Not authorized, no token" });
   }
 };
-
+// ... keep authorize function as is ...
 // 👮 AUTHORIZE: Checks if user has the correct Role
 export const authorize = (...roles) => {
   return (req, res, next) => {

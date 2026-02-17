@@ -22,7 +22,6 @@ router.post(
 
       // 1. AI Extraction
       const extractedData = await extractInvoiceData(req.file.path);
-      fs.unlinkSync(req.file.path); 
 
       // 2. Verification Logic (JSON Check)
       const verificationResult = await verifyInvoiceRules(extractedData);
@@ -49,7 +48,10 @@ router.post(
         buyerGst: extractedData.buyer_gstin,
         buyerName: extractedData.buyer_name,
         
-        status: "Verified" // Since verification passed
+        status: "Verified" ,// Since verification passed
+        fileUrl: req.file.path, // 👈 Save the file path to DB
+        description: `Invoice for ${extractedData.items_summary || "services provided"}`, // 👈 AI Generated Description
+        bidstatus: "Pending_Bids" 
       });
 
       console.log("✅ Saved to MongoDB:", newInvoice._id);

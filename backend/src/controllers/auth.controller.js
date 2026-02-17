@@ -4,8 +4,8 @@ import jwt from "jsonwebtoken";
 
 
 // Generate JWT Token
-const generateToken = (id) => {
-  return jwt.sign({ id, role: "seller" }, process.env.JWT_SECRET, {
+const generateToken = (id, role) => {
+  return jwt.sign({ id, role }, process.env.JWT_SECRET, {
     expiresIn: "30d",
   });
 };
@@ -47,7 +47,7 @@ export const registerSeller = async (req, res) => {
         _id: seller._id,
         email: seller.email,
         companyName: seller.companyName,
-        token: generateToken(seller._id),
+        token: generateToken(seller._id, "seller"),
         message: "Seller registered successfully"
       });
     } else {
@@ -74,7 +74,7 @@ export const loginSeller = async (req, res) => {
         _id: seller._id,
         email: seller.email,
         companyName: seller.companyName,
-        token: generateToken(seller._id),
+        token: generateToken(seller._id, "seller"),
         message: "Login successful"
       });
     } else {
