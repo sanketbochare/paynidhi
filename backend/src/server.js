@@ -3,6 +3,7 @@ import express from "express";
 import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url"; // 👈 Import required for ES Modules
+import sellerRoutes from "./routes/seller.routes.js";
 
 import connectDB from "./lib/db.js";
 
@@ -27,8 +28,12 @@ app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
 // 🔌 Mount Routes
 app.use("/api/auth", authRoutes);
+
 app.use("/api/invoice", invoiceRoutes);
+
 app.use("/api/lender", lenderRoutes);
+
+app.use("/api/seller", sellerRoutes);
 
 const PORT = process.env.PORT || 5001;
 

@@ -36,30 +36,78 @@ export const getMarketplace = async (req, res) => {
 
 // @desc    Place a Bid
 // @route   POST /api/lender/bid/:invoiceId
+// @desc    Place a Detailed Bid
+// @route   POST /api/lender/bid/:invoiceId
 export const placeBid = async (req, res) => {
   try {
-    const { interestRate, proposedAmount } = req.body;
     const { invoiceId } = req.params;
+    const { 
+      loanAmount,      // e.g. 45000
+      interestRate,    // e.g. 1.2 (Monthly %)
+      processingFee    // e.g. 200
+    } = req.body;
 
-    // 1. Create the Bid
+    const lenderId = req.user._id;
+
+    // 1. Get Invoice Details (We need the Due Date to calculate tenure)
+    const invoice = await Invoice.findById(invoiceId);
+    if (!invoice) return res.status(404).json({ error: "Invoice not found" });
+
+    // 2. Calculate Tenure (Days remaining until Due Date)
+    const today = new Date();
+    const dueDate = new Date(invoice.dueDate);
+    const timeDiff = dueDate.getTime() - today.getTime();
+    const daysRemaining = Math.ceil(timeDiff / (1000 * 3600 * 24));
+
+    if (daysRemaining <= 0) {
+      return res.status(400).json({ error: "Invoice is already due or overdue. Cannot finance." });
+    }
+
+    // 3. 🧮 FINANCIAL MATH (The "Term Sheet")
+    // Formula: Interest = Principal * (Rate/100) * (Days/30)
+    // Note: Lenders usually quote Monthly rates
+    const interestAmount = Math.ceil(loanAmount * (interestRate / 100) * (daysRemaining / 30));
+    
+    const repaymentAmount = loanAmount + interestAmount;
+    const netDisbursement = loanAmount - (processingFee || 0);
+
+    // 4. Create the Bid
     const newBid = await Bid.create({
       invoice: invoiceId,
-      lender: req.user._id,
-      interestRate,
-      proposedAmount
+      lender: lenderId,
+      
+      loanAmount: loanAmount,
+      interestRate: interestRate,
+      processingFee: processingFee || 0,
+      
+      repaymentAmount: repaymentAmount,
+      netDisbursement: netDisbursement,
+      tenureDays: daysRemaining,
+
+      // 📅 SET EXPIRY TO 1 WEEK (7 Days)
+      expiryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) 
     });
 
-    // 2. Update Invoice Status to show it has activity
+    // 5. Update Invoice Status
     await Invoice.findByIdAndUpdate(invoiceId, { status: "Pending_Bids" });
 
     res.status(201).json({
       success: true,
       message: "Bid Placed Successfully!",
-      data: newBid
+      data: newBid,
+      breakdown: {
+        sellerReceives: netDisbursement,
+        sellerPaysBack: repaymentAmount,
+        profit: interestAmount + (processingFee || 0)
+      }
     });
 
   } catch (error) {
     console.error("Bidding Error:", error);
+    // Handle Duplicate Bid Error
+    if (error.code === 11000) {
+      return res.status(400).json({ error: "You have already placed a bid on this invoice." });
+    }
     res.status(500).json({ error: "Failed to place bid" });
   }
 };
