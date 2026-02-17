@@ -5,7 +5,6 @@ import Footer from '../components/Footer';
 import {
   IndianRupee,
   LineChart,
-  Building2,
   ShieldCheck,
   Users2,
   ArrowRight,
@@ -17,9 +16,9 @@ const SolutionsPage = () => {
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
       <Navbar />
 
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 lg:pt-32 pb-20 space-y-16 lg:space-y-20">
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 lg:pt-32 pb-20 space-y-14 lg:space-y-16">
         {/* HERO */}
-        <section className="space-y-4 max-w-3xl">
+        <section className="space-y-5 max-w-3xl">
           <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 dark:bg-slate-900 px-3 py-1 border border-slate-200 dark:border-slate-800">
             <Sparkles size={14} className="text-indigo-500" />
             <p className="text-[11px] font-semibold tracking-[0.18em] uppercase text-slate-600 dark:text-slate-300">
@@ -30,259 +29,211 @@ const SolutionsPage = () => {
           <h1 className="text-3xl sm:text-4xl lg:text-[40px] font-black tracking-tight leading-tight">
             AI‑driven invoice finance
             <span className="block bg-clip-text text-transparent bg-gradient-to-r from-emerald-500 via-teal-500 to-indigo-500">
-              built on documents, data and trust.
+              that feels simple to use.
             </span>
           </h1>
 
           <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 leading-relaxed">
-            PayNidhi combines AI‑OCR, three‑way matching and the PayNidhi Score to turn raw invoices and POs into
-            trusted, finance‑ready assets—so MSMEs and lenders can move from manual entry to intelligent capital.
+            Instead of long forms and spreadsheets, PayNidhi wraps AI‑OCR, a three‑way matching trust layer and the
+            PayNidhi Score into three clear blocks any MSME or lender can understand in a minute.
           </p>
         </section>
 
-        {/* HIGH‑LEVEL OVERVIEW */}
-        <section className="space-y-3">
-          <p className="text-[11px] font-semibold tracking-[0.18em] uppercase text-indigo-500">
-            At a glance
-          </p>
-          <div className="grid gap-6 md:grid-cols-3 text-sm">
-            <div>
-              <p className="font-semibold text-slate-900 dark:text-slate-50 mb-1">
-                AI‑OCR powered intake
-              </p>
-              <p className="text-slate-600 dark:text-slate-300">
-                Gemini‑class AI reads invoices, POs and statements, turning documents into structured data.
-              </p>
+        {/* MAIN 3 CARDS – BIG, SIMPLE, RESPONSIVE */}
+        <section className="grid gap-5 md:grid-cols-3">
+          {/* CARD 1: AI‑OCR */}
+          <div className="group rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-4 py-5 flex flex-col gap-3 shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-emerald-500/60 transition-all duration-200">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="h-9 w-9 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+                  <LineChart size={18} />
+                </div>
+                <p className="text-xs font-semibold text-slate-900 dark:text-slate-50">
+                  AI‑OCR intake
+                </p>
+              </div>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500">
+                Step 1
+              </span>
             </div>
-            <div>
-              <p className="font-semibold text-slate-900 dark:text-slate-50 mb-1">
-                Three‑way matching trust layer
-              </p>
-              <p className="text-slate-600 dark:text-slate-300">
-                Buyer + MSME + PO logic validates what was ordered, invoiced and financed.
-              </p>
+
+            <p className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+              Gemini‑powered reading of invoices and POs
+            </p>
+            <p className="text-xs text-slate-600 dark:text-slate-300">
+              Upload or sync invoices and POs; PayNidhi auto‑fills buyer, GSTIN, dates, line items, tax and totals so
+              finance teams don’t have to type everything again.
+            </p>
+
+            {/* tiny “preview” row */}
+            <div className="mt-1 rounded-2xl bg-slate-50 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 px-3 py-2 text-[11px] text-slate-500 dark:text-slate-400 flex justify-between">
+              <span>INV‑0923 · Buyer A</span>
+              <span className="text-emerald-500">GSTIN ✓ · PO linked</span>
             </div>
-            <div>
-              <p className="font-semibold text-slate-900 dark:text-slate-50 mb-1">
-                PayNidhi Score
-              </p>
-              <p className="text-slate-600 dark:text-slate-300">
-                GST signals, buyer rating and repayment speed combined into a single, lender‑grade score.
-              </p>
+          </div>
+
+          {/* CARD 2: TRUST LAYER */}
+          <div className="group rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-4 py-5 flex flex-col gap-3 shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-indigo-500/60 transition-all duration-200">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="h-9 w-9 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-500">
+                  <ShieldCheck size={18} />
+                </div>
+                <p className="text-xs font-semibold text-slate-900 dark:text-slate-50">
+                  Trust layer
+                </p>
+              </div>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500">
+                Step 2
+              </span>
+            </div>
+
+            <p className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+              Three‑way matching: Buyer × MSME × PO
+            </p>
+            <p className="text-xs text-slate-600 dark:text-slate-300">
+              PayNidhi checks that what was ordered, invoiced and actually fulfilled match up, so each financed
+              invoice is tied to a real PO and delivery.
+            </p>
+
+            <div className="mt-1 grid grid-cols-3 gap-2 text-[11px] text-slate-500 dark:text-slate-400">
+              <div className="rounded-xl bg-slate-50 dark:bg-slate-900/70 px-2 py-1.5">
+                <p className="font-semibold text-xs text-slate-800 dark:text-slate-50">Buyer</p>
+                <p>GSTIN, history</p>
+              </div>
+              <div className="rounded-xl bg-slate-50 dark:bg-slate-900/70 px-2 py-1.5">
+                <p className="font-semibold text-xs text-slate-800 dark:text-slate-50">MSME</p>
+                <p>Books, GST</p>
+              </div>
+              <div className="rounded-xl bg-slate-50 dark:bg-slate-900/70 px-2 py-1.5">
+                <p className="font-semibold text-xs text-slate-800 dark:text-slate-50">PO</p>
+                <p>Qty, value</p>
+              </div>
+            </div>
+          </div>
+
+          {/* CARD 3: PAYNIDHI SCORE */}
+          <div className="group rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-4 py-5 flex flex-col gap-3 shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-teal-500/60 transition-all duration-200">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="h-9 w-9 rounded-2xl bg-teal-500/10 flex items-center justify-center text-teal-500">
+                  <LineChart size={18} />
+                </div>
+                <p className="text-xs font-semibold text-slate-900 dark:text-slate-50">
+                  PayNidhi Score
+                </p>
+              </div>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500">
+                Step 3
+              </span>
+            </div>
+
+            <p className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+              GST × buyer rating × repayment speed
+            </p>
+            <p className="text-xs text-slate-600 dark:text-slate-300">
+              A single score that explains, in plain language, why an MSME and a set of invoices deserve a certain
+              limit and price.
+            </p>
+
+            <div className="mt-1 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+              <span>Score: A‑ (stable)</span>
+              <span className="text-emerald-500">Limit adjusts as data updates</span>
             </div>
           </div>
         </section>
 
-        {/* SOLUTION 1: AI‑OCR INTEGRATION (GEMINI) */}
-        <section className="space-y-4">
+        {/* SIMPLE “HOW IT WORKS” ROW */}
+        <section className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-4 py-4 text-[11px] sm:text-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex items-center gap-2">
-            <LineChart size={20} className="text-teal-500" />
-            <h2 className="text-xl sm:text-2xl font-bold">
-              1. AI‑OCR Invoice & PO Extraction (Gemini‑powered)
-            </h2>
+            <span className="h-2 w-2 rounded-full bg-emerald-500" />
+            <span className="font-semibold text-slate-800 dark:text-slate-100">
+              1 · Upload
+            </span>
+            <span className="text-slate-500 dark:text-slate-400">Invoices, POs, GST docs</span>
           </div>
-
-          <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 max-w-3xl">
-            PayNidhi plugs into your existing workflows and uses Gemini‑class AI‑OCR to read invoices, purchase
-            orders and supporting documents—eliminating manual data entry and reducing errors before financing.
-          </p>
-
-          <div className="grid gap-6 md:grid-cols-2 text-sm">
-            <div>
-              <h3 className="font-semibold text-slate-900 dark:text-slate-50 mb-1">
-                What AI‑OCR captures
-              </h3>
-              <ul className="space-y-1.5 text-slate-600 dark:text-slate-300">
-                <li>Invoice details: buyer, seller, GSTINs, invoice number, date and line items.</li>
-                <li>Financials: taxable value, tax components, total amount, due date and currency.</li>
-                <li>PO data: PO number, ordered quantities, agreed rates, delivery terms.</li>
-                <li>Supporting docs: e‑way bills, GRNs and signatures where available.</li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="font-semibold text-slate-900 dark:text-slate-50 mb-1">
-                Why it matters
-              </h3>
-              <ul className="space-y-1.5 text-slate-600 dark:text-slate-300">
-                <li>Removes repetitive, manual key‑in for finance teams.</li>
-                <li>Standardises data for the PayNidhi Score and lender systems.</li>
-                <li>Reduces mismatch risk before credit decisions are even made.</li>
-                <li>Makes onboarding faster for both MSMEs and lenders.</li>
-              </ul>
-            </div>
+          <div className="flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-indigo-500" />
+            <span className="font-semibold text-slate-800 dark:text-slate-100">
+              2 · Verify
+            </span>
+            <span className="text-slate-500 dark:text-slate-400">Three‑way match + PayNidhi Score</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-teal-500" />
+            <span className="font-semibold text-slate-800 dark:text-slate-100">
+              3 · Finance
+            </span>
+            <span className="text-slate-500 dark:text-slate-400">Limit and offers on trusted invoices</span>
           </div>
         </section>
 
-        {/* SOLUTION 2: THREE‑WAY MATCHING TRUST LAYER */}
-        <section className="space-y-4">
-          <div className="flex items-center gap-2">
-            <ShieldCheck size={20} className="text-emerald-500" />
-            <h2 className="text-xl sm:text-2xl font-bold">
-              2. Three‑Way Matching Trust Layer (Buyer × MSME × PO)
+        {/* TWO SHORT DETAIL BLOCKS – EASY TEXT */}
+        <section className="grid gap-6 md:grid-cols-2 text-sm">
+          <div className="space-y-3">
+            <h2 className="text-lg sm:text-xl font-bold">
+              For MSMEs
             </h2>
+            <ul className="space-y-1.5 text-slate-600 dark:text-slate-300 text-xs sm:text-sm">
+              <li>Use existing invoices to unlock working capital without changing your main bank.</li>
+              <li>See, in one place, which buyers are strong and which slow you down.</li>
+              <li>Plan salaries, vendor payments and purchases on more predictable cash‑flows.</li>
+            </ul>
           </div>
 
-          <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 max-w-3xl">
-            Before an invoice is financed, PayNidhi runs a three‑way match between the purchase order, the invoice
-            and the MSME’s records—building a trust layer that reduces disputes and gives lenders confidence.
-          </p>
-
-          <div className="grid gap-6 md:grid-cols-3 text-sm">
-            <div>
-              <h3 className="font-semibold text-slate-900 dark:text-slate-50 mb-1">
-                Buyer dimension
-              </h3>
-              <ul className="space-y-1.5 text-slate-600 dark:text-slate-300">
-                <li>Checks if the buyer, GSTIN and billing details match the PO and past behaviour.</li>
-                <li>Verifies typical order size, frequency and historical payment patterns.</li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="font-semibold text-slate-900 dark:text-slate-50 mb-1">
-                MSME dimension
-              </h3>
-              <ul className="space-y-1.5 text-slate-600 dark:text-slate-300">
-                <li>Confirms that the MSME has recognised the sale in its GST and books.</li>
-                <li>Validates that quantities, pricing and tax treatment are consistent.</li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="font-semibold text-slate-900 dark:text-slate-50 mb-1">
-                PO & fulfilment dimension
-              </h3>
-              <ul className="space-y-1.5 text-slate-600 dark:text-slate-300">
-                <li>Matches what was ordered (PO) with what was invoiced and shipped.</li>
-                <li>Flags partial deliveries, over‑billing or unusual adjustments for review.</li>
-              </ul>
-            </div>
-          </div>
-
-          <p className="text-sm text-slate-600 dark:text-slate-300 max-w-3xl">
-            This trust layer is what differentiates PayNidhi from a generic lending form: every financed invoice
-            is anchored to a real buyer, a real PO and a real fulfilment trail.
-          </p>
-        </section>
-
-        {/* SOLUTION 3: PAYNIDHI SCORE (GST + BUYER RATING + REPAYMENT SPEED) */}
-        <section className="space-y-4">
-          <div className="flex items-center gap-2">
-            <LineChart size={20} className="text-indigo-500" />
-            <h2 className="text-xl sm:text-2xl font-bold">
-              3. The PayNidhi Score
+          <div className="space-y-3">
+            <h2 className="text-lg sm:text-xl font-bold">
+              For lenders
             </h2>
-          </div>
-
-          <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 max-w-3xl">
-            The PayNidhi Score turns raw operational data into a single, lender‑grade view of risk for each MSME
-            and invoice pool—built from the signals that actually matter in Indian B2B trade.
-          </p>
-
-          <div className="grid gap-6 md:grid-cols-3 text-sm">
-            <div>
-              <h3 className="font-semibold text-slate-900 dark:text-slate-50 mb-1">
-                GST behaviour
-              </h3>
-              <ul className="space-y-1.5 text-slate-600 dark:text-slate-300">
-                <li>Consistency of GST filings and reported turnover over time.</li>
-                <li>Match between invoice patterns and declared sales.</li>
-                <li>Sector and seasonality context for reported revenues.</li>
-              </ul>
-            </div>
-
-            <div>
-              <h3 className="font-semibold text-slate-900 dark:text-slate-50 mb-1">
-                Buyer rating
-              </h3>
-              <ul className="space-y-1.5 text-slate-600 dark:text-slate-300">
-                <li>Historical on‑time payment ratio for each buyer.</li>
-                <li>Average delay days and dispute frequency on past invoices.</li>
-                <li>Concentration risk: how much exposure sits with a few large buyers.</li>
-              </ul>
-            </div>
-
-            <div>
-              <h3 className="font-semibold text-slate-900 dark:text-slate-50 mb-1">
-                Repayment speed
-              </h3>
-              <ul className="space-y-1.5 text-slate-600 dark:text-slate-300">
-                <li>Time from invoice date to actual repayment across cycles.</li>
-                <li>Behaviour under stress: how the MSME behaves in tight months.</li>
-                <li>Trend line: improving, stable or deteriorating repayment patterns.</li>
-              </ul>
-            </div>
-          </div>
-
-          <p className="text-sm text-slate-600 dark:text-slate-300 max-w-3xl">
-            Lenders can plug the PayNidhi Score into their own models, while MSMEs get a transparent sense of what
-            is driving their financing capacity and how to improve it.
-          </p>
-        </section>
-
-        {/* CLASSIC INVOICE FINANCE LINE (BUILT ON TOP OF THE ABOVE) */}
-        <section className="space-y-4">
-          <div className="flex items-center gap-2">
-            <IndianRupee size={20} className="text-emerald-500" />
-            <h2 className="text-xl sm:text-2xl font-bold">
-              4. Invoice Finance Line (on top of AI‑OCR + Trust + Score)
-            </h2>
-          </div>
-
-          <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 max-w-3xl">
-            Once documents are extracted by AI‑OCR, validated by three‑way matching and scored by PayNidhi, MSMEs
-            can access a flexible credit line linked to their approved invoices.
-          </p>
-
-          <div className="grid gap-6 md:grid-cols-2 text-sm">
-            <div>
-              <h3 className="font-semibold text-slate-900 dark:text-slate-50 mb-1">
-                For MSMEs
-              </h3>
-              <ul className="space-y-1.5 text-slate-600 dark:text-slate-300">
-                <li>Draw down against eligible invoices as and when you need working capital.</li>
-                <li>Keep existing banking relationships; use PayNidhi as an additional rail.</li>
-                <li>Align repayments with actual customer payment dates and cycles.</li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="font-semibold text-slate-900 dark:text-slate-50 mb-1">
-                For lenders
-              </h3>
-              <ul className="space-y-1.5 text-slate-600 dark:text-slate-300">
-                <li>Underwrite against verified, matched and scored receivables.</li>
-                <li>Configure limits, pricing and covenants based on PayNidhi data.</li>
-                <li>Monitor performance over time at MSME, buyer and invoice‑pool level.</li>
-              </ul>
-            </div>
+            <ul className="space-y-1.5 text-slate-600 dark:text-slate-300 text-xs sm:text-sm">
+              <li>Review AI‑extracted documents, trust checks and scores instead of raw PDFs.</li>
+              <li>Filter by MSME, buyer or invoice‑pool to shape portfolios the way you want.</li>
+              <li>Plug the PayNidhi Score into your own models if you prefer.</li>
+            </ul>
           </div>
         </section>
 
-        {/* WHO BENEFITS */}
-        <section className="space-y-4">
-          <div className="flex items-center gap-2">
-            <Users2 size={18} className="text-indigo-500" />
-            <h2 className="text-xl sm:text-2xl font-bold">
-              Built for finance, ops and credit teams.
-            </h2>
+        {/* SMALL “LIMIT SNAPSHOT” CARD – VISUAL */}
+        <section className="rounded-3xl bg-slate-900 text-slate-50 border border-slate-800 px-4 py-4 sm:px-5 sm:py-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 text-xs sm:text-sm">
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">
+              Example snapshot
+            </p>
+            <p className="mt-1 text-sm sm:text-base font-semibold">
+              How PayNidhi can change one MSME’s day
+            </p>
           </div>
-
-          <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 max-w-3xl">
-            Each layer—AI‑OCR, three‑way matching and the PayNidhi Score—is designed to remove manual work for MSMEs
-            while giving credit and risk teams a clearer, more defensible view of every rupee financed.
-          </p>
+          <div className="grid grid-cols-3 gap-3 flex-1">
+            <div className="rounded-2xl bg-slate-950/60 border border-slate-800 px-3 py-2">
+              <p className="text-[11px] text-slate-400">Live invoices</p>
+              <p className="text-sm font-semibold">₹42.5L</p>
+              <p className="text-[11px] text-slate-400">18 in cycle</p>
+            </div>
+            <div className="rounded-2xl bg-slate-950/60 border border-slate-800 px-3 py-2">
+              <p className="text-[11px] text-slate-400">Eligible capital</p>
+              <p className="text-sm font-semibold text-emerald-400">Up to ₹30L</p>
+              <p className="text-[11px] text-slate-400">Linked to PayNidhi Score</p>
+            </div>
+            <div className="rounded-2xl bg-slate-950/60 border border-slate-800 px-3 py-2">
+              <p className="text-[11px] text-slate-400">Score</p>
+              <p className="text-sm font-semibold">A‑</p>
+              <p className="text-[11px] text-slate-400">Stable trend</p>
+            </div>
+          </div>
         </section>
 
         {/* FINAL CTA */}
         <section className="border-t border-slate-200 dark:border-slate-800 pt-8 flex flex-col md:flex-row gap-5 md:gap-8 items-start md:items-center justify-between">
           <div>
             <h2 className="text-lg sm:text-xl font-semibold">
-              See these layers in action on your invoices.
+              Try it on a few real invoices.
             </h2>
             <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 mt-1 max-w-xl">
-              Share sample invoices, POs and buyer details, and we’ll walk you through how AI‑OCR, three‑way
-              matching and the PayNidhi Score can change your working‑capital options.
+              Share 3–5 sample invoices and buyer names, and we’ll show you, in a simple view, how AI‑OCR,
+              three‑way matching and the PayNidhi Score would look for your business.
             </p>
           </div>
-          <button className="inline-flex items-center justify-center rounded-2xl bg-slate-900 dark:bg-indigo-600 text-white px-5 py-2.5 text-xs sm:text-sm font-semibold hover:bg-slate-800 dark:hover:bg-indigo-500 transition-colors">
+          <button className="inline-flex items-center justify-center rounded-2xl bg-slate-900 dark:bg-indigo-600 text-white px-5 py-2.5 text-xs sm:text-sm font-semibold hover:bg-slate-800 dark:hover:bg-indigo-500 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg">
             Talk to our team
             <ArrowRight className="ml-1" size={16} />
           </button>

@@ -40,7 +40,7 @@ const LandingPage = () => {
             </div>
 
             {/* Headline */}
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-tight mb-4">
+            <h1 className="text-4xl sm:text-5xl lg:text-4xl font-black tracking-tight leading-tight mb-4">
               Turn your unpaid invoices
               <span className="block bg-clip-text text-transparent bg-gradient-to-r from-emerald-500 via-teal-500 to-indigo-500 mt-1">
                 into instant working capital.
@@ -49,7 +49,7 @@ const LandingPage = () => {
 
             <p className="mt-4 text-base sm:text-lg text-slate-600 dark:text-slate-300 max-w-xl leading-relaxed">
               PayNidhi unlocks <span className="font-semibold text-emerald-600 dark:text-emerald-400">70–80% of invoice value</span>{' '}
-              for GST‑registered MSMEs so you can pay vendors, salaries, and accept bigger orders—without waiting 30–90 days. [web:93][web:104]
+              for GST‑registered MSMEs so you can pay vendors, salaries, and accept bigger orders—without waiting 30–90 days
             </p>
 
             {/* Hero stats strip */}
