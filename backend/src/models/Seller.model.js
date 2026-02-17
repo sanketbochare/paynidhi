@@ -76,7 +76,7 @@ const sellerSchema = new mongoose.Schema(
 // 🔒 MIDDLEWARE: ENCRYPTION & HASHING
 // ==========================================
 
-sellerSchema.pre("save", async function (next) {
+sellerSchema.pre("save", async function () {
   const seller = this;
 
   // 1. Hash Password
@@ -97,7 +97,6 @@ sellerSchema.pre("save", async function (next) {
     seller.bankAccount.ifsc = encryptField(seller.bankAccount.ifsc);
   }
 
-  next();
 });
 
 // ==========================================
