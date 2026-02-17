@@ -1,7 +1,7 @@
 import Seller from "../models/Seller.model.js";
 import Lender from "../models/Lender.model.js";
 import jwt from "jsonwebtoken";
-
+import { encryptField, decryptField, hashField } from './../utils/encryption.utils.js'
 
 // Generate JWT Token
 const generateToken = (id) => {
@@ -19,16 +19,46 @@ export const registerSeller = async (req, res) => {
       gstNumber, panNumber, 
       bankAccount, businessType, industry 
     } = req.body;
-
+    // checking for error
+    console.log("gst number, email: ", gstNumber, email);
     // 1. Check if Seller already exists
     const sellerExists = await Seller.findOne({ email });
     if (sellerExists) {
+      console.log('found duplicate email!!!');
+      // console.log(sellerExists);
       return res.status(400).json({ error: "Seller with this email already exists" });
     }
-
+    
+    //checking for error
+    console.log("seller email verified");
     // 2. Check if GST/PAN is already used (Prevent duplicate businesses)
     // Note: We search by encrypted value is tricky, but for now we rely on email uniqueness primarily.
     // If you need strict GST uniqueness check, we'd need a blind index, but let's keep it simple first.
+
+    
+    const isGstNumDuplicate = await Seller.exists({ gstHash: hashField(gstNumber) });
+    const isPanNumDuplicate = await Seller.exists({ panHash: hashField(panNumber) });
+
+    console.log('gstduplicate', isGstNumDuplicate, " ", gstNumber);
+    console.log('panduplicate', isPanNumDuplicate, " ", panNumber);
+
+    if (isGstNumDuplicate && isPanNumDuplicate) {
+  return res.status(400).json({
+    error: "GST Number and PAN Number must be unique"
+  });
+}
+
+if (isGstNumDuplicate) {
+  return res.status(400).json({
+    error: "GST Number must be unique"
+  });
+}
+
+if (isPanNumDuplicate) {
+  return res.status(400).json({
+    error: "PAN Number must be unique"
+  });
+}
 
     // 3. Create Seller
     const seller = await Seller.create({
@@ -43,7 +73,9 @@ export const registerSeller = async (req, res) => {
     });
 
     if (seller) {
-      res.status(201).json({
+      console.log("seller created: ");
+      console.log(seller);
+      return res.status(201).json({
         _id: seller._id,
         email: seller.email,
         companyName: seller.companyName,
@@ -51,11 +83,11 @@ export const registerSeller = async (req, res) => {
         message: "Seller registered successfully"
       });
     } else {
-      res.status(400).json({ error: "Invalid seller data" });
+      return res.status(400).json({ error: "Invalid seller data" });
     }
   } catch (error) {
     console.error("Registration Error:", error);
-    res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: error.message });
   }
 };
 

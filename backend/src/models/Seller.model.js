@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
-import { encryptField, decryptField } from "../utils/encryption.utils.js"; // Ensure you created this file!
+import { encryptField, decryptField, hashField } from "../utils/encryption.utils.js"; // Ensure you created this file!
 
 const sellerSchema = new mongoose.Schema(
   {
@@ -26,6 +26,10 @@ const sellerSchema = new mongoose.Schema(
     panNumber: { type: String, required: true, unique: true, trim: true }, 
     gstNumber: { type: String, required: true, unique: true, trim: true },
 
+    // store hash for checking
+    panHash : { type: String, required: true, unique: true, index: true },
+    gstHash : { type: String, required: true, unique: true, index: true },
+
     // 4. Bank Details (Account & IFSC Encrypted)
     bankAccount: {
       accountNumber: { type: String, required: true }, 
@@ -48,22 +52,39 @@ const sellerSchema = new mongoose.Schema(
 
 // Pre-save: Encrypt Sensitive Data & Hash Password
 // ✅ NEW (Fixed)
-sellerSchema.pre("save", async function () { // 1. Remove 'next' from here
+sellerSchema.pre("validate", async function () {
   const seller = this;
 
-  // Hash Password
+  // Hash password
   if (seller.isModified("password")) {
     const salt = await bcrypt.genSalt(10);
     seller.password = await bcrypt.hash(seller.password, salt);
   }
 
-  // Encrypt Sensitive Fields
-  if (seller.isModified("panNumber")) seller.panNumber = encryptField(seller.panNumber);
-  if (seller.isModified("gstNumber")) seller.gstNumber = encryptField(seller.gstNumber);
-  if (seller.isModified("bankAccount.accountNumber")) seller.bankAccount.accountNumber = encryptField(seller.bankAccount.accountNumber);
-  if (seller.isModified("bankAccount.ifsc")) seller.bankAccount.ifsc = encryptField(seller.bankAccount.ifsc);
-  
-  // 2. Do NOT call next(). The function just ends.
+  // Encrypt bank details
+  if (seller.isModified("bankAccount.accountNumber") && seller.bankAccount?.accountNumber) {
+    seller.bankAccount.accountNumber = encryptField(
+      seller.bankAccount.accountNumber
+    );
+  }
+
+  if (seller.isModified("bankAccount.ifsc") && seller.bankAccount?.ifsc) {
+    seller.bankAccount.ifsc = encryptField(seller.bankAccount.ifsc);
+  }
+
+  // PAN
+  if (seller.isModified("panNumber")) {
+    const originalPan = seller.panNumber.trim().toUpperCase();
+    seller.panHash = hashField(originalPan);
+    seller.panNumber = encryptField(originalPan);
+  }
+
+  // GST
+  if (seller.isModified("gstNumber")) {
+    const originalGst = seller.gstNumber.trim().toUpperCase();
+    seller.gstHash = hashField(originalGst);
+    seller.gstNumber = encryptField(originalGst);
+  }
 });
 
 // Post-init: Decrypt Data (So you see plain text in your code)
