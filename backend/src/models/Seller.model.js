@@ -1,14 +1,28 @@
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
-import { encryptField, decryptField, hashField } from "../utils/encryption.utils.js"; // Ensure you created this file!
+import { encryptField, decryptField } from "../utils/encryption.utils.js";
 
 const sellerSchema = new mongoose.Schema(
   {
-    // 1. Core Identity
-    email: { type: String, required: true, unique: true, lowercase: true, trim: true },
-    password: { type: String, required: true, minlength: 6 }, // Hashed
-    
-    // 2. Business Profile
+    // =================================================
+    // 1. CORE IDENTITY (Login)
+    // =================================================
+    email: { 
+      type: String, 
+      required: true, 
+      unique: true, 
+      lowercase: true, 
+      trim: true 
+    },
+    password: { 
+      type: String, 
+      required: true, 
+      minlength: 6 
+    }, 
+
+    // =================================================
+    // 2. BUSINESS PROFILE (Public to Lenders)
+    // =================================================
     companyName: { type: String, required: true, trim: true },
     businessType: {
       type: String,
@@ -20,82 +34,90 @@ const sellerSchema = new mongoose.Schema(
       enum: ["Textiles", "IT", "Pharma", "Auto", "FMCG", "Retail"],
       default: "IT"
     },
-    annualTurnover: { type: Number, default: 0 },
+    annualTurnover: { type: Number, default: 0 }, // 👈 Added back (Critical for risk assessment)
 
-    // 3. Sensitive KYC Data (Encrypted)
-    panNumber: { type: String, required: true, unique: true, trim: true }, 
-    gstNumber: { type: String, required: true, unique: true, trim: true },
+    // =================================================
+    // 3. SENSITIVE KYC DATA (Encrypted + Blind Index)
+    // =================================================
+    
+    // A. The Encrypted Data (Randomized IV - Secure but not unique)
+    panNumber: { type: String, required: true }, 
+    gstNumber: { type: String, required: true },
 
-    // store hash for checking
-    panHash : { type: String, required: true, unique: true, index: true },
-    gstHash : { type: String, required: true, unique: true, index: true },
+    // B. The Blind Indexes (Hashed - Deterministic - Enforces Uniqueness)
+    // 👈 THESE ARE CRITICAL FOR FRAUD PREVENTION
+    panHash: { type: String, required: true, unique: true, index: true }, 
+    gstHash: { type: String, required: true, unique: true, index: true },
 
-    // 4. Bank Details (Account & IFSC Encrypted)
+    // =================================================
+    // 4. BANK DETAILS (Encrypted)
+    // =================================================
     bankAccount: {
-      accountNumber: { type: String, required: true }, 
-      ifsc: { type: String, required: true, uppercase: true },
+      accountNumber: { type: String, required: true }, // Will be encrypted
+      ifsc: { type: String, required: true, uppercase: true }, // Will be encrypted
       beneficiaryName: { type: String, required: true },
       bankName: { type: String },
       verified: { type: Boolean, default: false },
     },
 
-    // 5. System Fields
+    // =================================================
+    // 5. SYSTEM & FINANCIALS
+    // =================================================
     isOnboarded: { type: Boolean, default: false },
     trustScore: { type: Number, default: 0 },
+    
+    // 👈 Added back (Required for the Disbursement Logic)
+    walletBalance: { type: Number, default: 0 } 
   },
   { timestamps: true }
 );
 
 // ==========================================
-// 🔒 SECURITY MIDDLEWARE
+// 🔒 MIDDLEWARE: ENCRYPTION & HASHING
 // ==========================================
 
-// Pre-save: Encrypt Sensitive Data & Hash Password
-// ✅ NEW (Fixed)
-sellerSchema.pre("validate", async function () {
+sellerSchema.pre("save", async function (next) {
   const seller = this;
 
-  // Hash password
+  // 1. Hash Password
   if (seller.isModified("password")) {
     const salt = await bcrypt.genSalt(10);
     seller.password = await bcrypt.hash(seller.password, salt);
   }
 
-  // Encrypt bank details
-  if (seller.isModified("bankAccount.accountNumber") && seller.bankAccount?.accountNumber) {
-    seller.bankAccount.accountNumber = encryptField(
-      seller.bankAccount.accountNumber
-    );
+  // 2. Encrypt KYC Fields (Only if modified)
+  if (seller.isModified("panNumber")) seller.panNumber = encryptField(seller.panNumber);
+  if (seller.isModified("gstNumber")) seller.gstNumber = encryptField(seller.gstNumber);
+  
+  // 3. Encrypt Bank Details
+  if (seller.isModified("bankAccount.accountNumber")) {
+    seller.bankAccount.accountNumber = encryptField(seller.bankAccount.accountNumber);
   }
-
-  if (seller.isModified("bankAccount.ifsc") && seller.bankAccount?.ifsc) {
+  if (seller.isModified("bankAccount.ifsc")) {
     seller.bankAccount.ifsc = encryptField(seller.bankAccount.ifsc);
   }
 
-  // PAN
-  if (seller.isModified("panNumber")) {
-    const originalPan = seller.panNumber.trim().toUpperCase();
-    seller.panHash = hashField(originalPan);
-    seller.panNumber = encryptField(originalPan);
-  }
-
-  // GST
-  if (seller.isModified("gstNumber")) {
-    const originalGst = seller.gstNumber.trim().toUpperCase();
-    seller.gstHash = hashField(originalGst);
-    seller.gstNumber = encryptField(originalGst);
-  }
+  next();
 });
 
-// Post-init: Decrypt Data (So you see plain text in your code)
+// ==========================================
+// 🔓 MIDDLEWARE: DECRYPTION
+// ==========================================
+
 sellerSchema.post("init", function (doc) {
+  // Check if field exists and has the ':' separator (indicating it is encrypted)
   if (doc.panNumber && doc.panNumber.includes(":")) doc.panNumber = decryptField(doc.panNumber);
   if (doc.gstNumber && doc.gstNumber.includes(":")) doc.gstNumber = decryptField(doc.gstNumber);
-  if (doc.bankAccount?.accountNumber?.includes(":")) doc.bankAccount.accountNumber = decryptField(doc.bankAccount.accountNumber);
-  if (doc.bankAccount?.ifsc?.includes(":")) doc.bankAccount.ifsc = decryptField(doc.bankAccount.ifsc);
+  
+  if (doc.bankAccount?.accountNumber?.includes(":")) {
+    doc.bankAccount.accountNumber = decryptField(doc.bankAccount.accountNumber);
+  }
+  if (doc.bankAccount?.ifsc?.includes(":")) {
+    doc.bankAccount.ifsc = decryptField(doc.bankAccount.ifsc);
+  }
 });
 
-// Compare Password Method
+// Password Match Method
 sellerSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
