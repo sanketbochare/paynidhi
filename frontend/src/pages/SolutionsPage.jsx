@@ -216,7 +216,7 @@ const SolutionsPage = () => {
             </div>
             <div className="rounded-2xl bg-slate-950/60 border border-slate-800 px-3 py-2">
               <p className="text-[11px] text-slate-400">Score</p>
-              <p className="text-sm font-semibold">A‑</p>
+              <p className="text-sm font-semibold">A+</p>
               <p className="text-[11px] text-slate-400">Stable trend</p>
             </div>
           </div>
