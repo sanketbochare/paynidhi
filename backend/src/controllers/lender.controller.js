@@ -40,38 +40,50 @@ export const getMarketplace = async (req, res) => {
 // @route   POST /api/lender/bid/:invoiceId
 export const placeBid = async (req, res) => {
   try {
-    const { invoiceId } = req.params;
+    // 1. Get Params from URL
+    const { invoiceId } = req.params; 
+    
+    // 2. Get Data from Body
     const { 
-      loanAmount,      // e.g. 45000
-      interestRate,    // e.g. 1.2 (Monthly %)
-      processingFee    // e.g. 200
+      loanAmount,      // e.g. 80000
+      interestRate,    // e.g. 1.5 (Monthly %)
+      processingFee,   // e.g. 1000
+      tenureDays       // Optional override, otherwise calculated from Due Date
     } = req.body;
 
     const lenderId = req.user._id;
 
-    // 1. Get Invoice Details (We need the Due Date to calculate tenure)
+    // 3. Validate Invoice
     const invoice = await Invoice.findById(invoiceId);
     if (!invoice) return res.status(404).json({ error: "Invoice not found" });
 
-    // 2. Calculate Tenure (Days remaining until Due Date)
-    const today = new Date();
-    const dueDate = new Date(invoice.dueDate);
-    const timeDiff = dueDate.getTime() - today.getTime();
-    const daysRemaining = Math.ceil(timeDiff / (1000 * 3600 * 24));
-
-    if (daysRemaining <= 0) {
-      return res.status(400).json({ error: "Invoice is already due or overdue. Cannot finance." });
+    // 4. Calculate Tenure (Days until Due Date)
+    // If tenure is not provided, calculate it based on today vs due date
+    let calculatedTenure = tenureDays;
+    if (!calculatedTenure) {
+        const today = new Date();
+        const dueDate = new Date(invoice.dueDate);
+        const timeDiff = dueDate.getTime() - today.getTime();
+        calculatedTenure = Math.ceil(timeDiff / (1000 * 3600 * 24));
     }
 
-    // 3. 🧮 FINANCIAL MATH (The "Term Sheet")
-    // Formula: Interest = Principal * (Rate/100) * (Days/30)
-    // Note: Lenders usually quote Monthly rates
-    const interestAmount = Math.ceil(loanAmount * (interestRate / 100) * (daysRemaining / 30));
+    if (calculatedTenure <= 0) {
+      return res.status(400).json({ error: "Invoice is already due. Cannot finance." });
+    }
+
+    // 5. 🧮 FINANCIAL MATH (The "Term Sheet")
+    // A. Interest = Principal * (MonthlyRate/100) * (Months)
+    // We treat 30 days as 1 month standard in finance
+    const interestAmount = Math.ceil(loanAmount * (interestRate / 100) * (calculatedTenure / 30));
     
+    // B. Total Repayment (What Seller pays back)
     const repaymentAmount = loanAmount + interestAmount;
+    
+    // C. Net Disbursement (What Seller gets in hand)
+    // Loan Amount - Processing Fee
     const netDisbursement = loanAmount - (processingFee || 0);
 
-    // 4. Create the Bid
+    // 6. Create the Bid
     const newBid = await Bid.create({
       invoice: invoiceId,
       lender: lenderId,
@@ -80,15 +92,16 @@ export const placeBid = async (req, res) => {
       interestRate: interestRate,
       processingFee: processingFee || 0,
       
+      // Calculated Fields
       repaymentAmount: repaymentAmount,
       netDisbursement: netDisbursement,
-      tenureDays: daysRemaining,
+      tenureDays: calculatedTenure,
 
-      // 📅 SET EXPIRY TO 1 WEEK (7 Days)
+      // Expiry (7 Days from now)
       expiryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) 
     });
 
-    // 5. Update Invoice Status
+    // 7. Update Invoice Status to indicate activity
     await Invoice.findByIdAndUpdate(invoiceId, { status: "Pending_Bids" });
 
     res.status(201).json({
@@ -96,18 +109,37 @@ export const placeBid = async (req, res) => {
       message: "Bid Placed Successfully!",
       data: newBid,
       breakdown: {
-        sellerReceives: netDisbursement,
-        sellerPaysBack: repaymentAmount,
-        profit: interestAmount + (processingFee || 0)
+        loanAmount: loanAmount,
+        interest: interestAmount,
+        fee: processingFee,
+        netDisbursement: netDisbursement, // Seller gets this
+        repaymentAmount: repaymentAmount  // Seller pays this
       }
     });
 
   } catch (error) {
     console.error("Bidding Error:", error);
-    // Handle Duplicate Bid Error
+    // Handle Duplicate Bid Error (MongoDB 11000)
     if (error.code === 11000) {
       return res.status(400).json({ error: "You have already placed a bid on this invoice." });
     }
     res.status(500).json({ error: "Failed to place bid" });
   }
 };
+
+// @desc    Get All Active Invoices (Marketplace)
+// @route   GET /api/lender/invoices
+export const getAllActiveInvoices = async (req, res) => {
+    try {
+      // Find invoices that are NOT yet financed
+      const invoices = await Invoice.find({ 
+          status: { $in: ["Verified", "Pending_Bids"] } 
+      })
+      .populate("seller", "companyName annualTurnover trustScore")
+      .sort({ createdAt: -1 });
+  
+      res.json(invoices);
+    } catch (error) {
+      res.status(500).json({ error: "Server Error" });
+    }
+  };

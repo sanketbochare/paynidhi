@@ -1,95 +1,104 @@
 import Invoice from "../models/Invoice.model.js";
 import Bid from "../models/Bid.model.js";
+import Lender from "../models/Lender.model.js";
+import Razorpay from "razorpay"; // 👈 New Import
 
-// @desc    Get Seller's Invoices & Associated Bids
-// @route   GET /api/seller/invoices
+// Initialize Razorpay
+const razorpay = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID,
+  key_secret: process.env.RAZORPAY_KEY_SECRET,
+});
+
+// ==========================================
+// 1. DASHBOARD: Get Invoices (This part was perfect ✅)
+// ==========================================
 export const getMyInvoices = async (req, res) => {
   try {
     const sellerId = req.user._id;
+    const invoices = await Invoice.find({ seller: sellerId }).sort({ createdAt: -1 }).lean();
 
-    // 1. Find all invoices by this seller
-    const invoices = await Invoice.find({ seller: sellerId })
-      .sort({ createdAt: -1 })
-      .lean();
-
-    // 2. Attach Bids to each invoice
     const dashboardData = await Promise.all(
       invoices.map(async (invoice) => {
-        const bids = await Bid.find({ invoice: invoice._id, status: "Pending" })
-          .populate("lender", "companyName lenderType") // Show who is bidding
-          .sort({ interestRate: 1 }); // Best rates first
+        const bids = await Bid.find({ invoice: invoice._id })
+          .populate("lender", "companyName lenderType")
+          .sort({ interestRate: 1 });
 
-        return {
-          ...invoice,
-          bids: bids,
-          bidCount: bids.length
-        };
+        return { ...invoice, bids: bids, bidCount: bids.length };
       })
     );
-
     res.json(dashboardData);
   } catch (error) {
-    console.error("Seller Dashboard Error:", error);
     res.status(500).json({ error: "Failed to load invoices" });
   }
 };
 
-// @desc    Accept or Reject a Bid
-// @route   POST /api/seller/bid-response/:bidId
+// ==========================================
+// 2. DEAL CLOSURE: Generate Banking Instructions (Updated ⚡️)
+// ==========================================
 export const respondToBid = async (req, res) => {
   try {
-    const { status } = req.body; // "Accepted" or "Rejected"
+    const { status } = req.body;
     const { bidId } = req.params;
     const sellerId = req.user._id;
 
-    // 1. Find the Bid
     const bid = await Bid.findById(bidId).populate("invoice");
     if (!bid) return res.status(404).json({ error: "Bid not found" });
 
-    // 2. Verify Ownership (Security Check)
-    if (bid.invoice.seller.toString() !== sellerId.toString()) {
-      return res.status(403).json({ error: "Not authorized to manage this bid" });
-    }
-
-    // 3. Handle REJECTION
+    // A. HANDLE REJECTION
     if (status === "Rejected") {
       bid.status = "Rejected";
       await bid.save();
-      return res.json({ message: "Bid rejected successfully" });
+      return res.json({ message: "Bid rejected successfully." });
     }
 
-    // 4. Handle ACCEPTANCE (The Big Moment!)
-    // 4. Handle ACCEPTANCE (Create the Payment Order)
+    // B. HANDLE ACCEPTANCE (The "Real" Logic)
     if (status === "Accepted") {
       
-      // A. Lock the Bid
-      bid.status = "Accepted";
+      // 1. Don't move money yet! Create the Virtual Account first.
+      // This is the "Bank Account" the Lender must pay into.
+      const va = await razorpay.virtualAccounts.create({
+        receiver_types: ["bank_account"],
+        description: `Funding for Invoice #${bid.invoice.invoiceNumber}`,
+        notes: { 
+            bidId: bidId,
+            invoiceId: bid.invoice._id.toString() 
+        }
+      });
+
+      // 2. Save these details so the Lender can see them
+      bid.paymentDetails = {
+        va_id: va.id,
+        accountNumber: va.receivers[0].account_number, // e.g. 111222000345
+        ifsc: va.receivers[0].ifsc,                   // e.g. UTIB0000000
+        bankName: va.receivers[0].bank_name,
+        status: "AWAITING_RTGS"
+      };
+
+      // 3. Lock the Deal
+      bid.status = "Accepted"; // Accepted, but not yet "Financed" (Funded)
       await bid.save();
 
-      // B. Update Invoice to "Awaiting Payment"
-      // This stops other lenders from bidding, but doesn't mark it "Financed" yet.
-      const invoice = await Invoice.findById(bid.invoice._id);
-      invoice.status = "Awaiting_Payment"; 
-      invoice.lender = bid.lender; // Link the Lender
-      await invoice.save();
+      // 4. Update Invoice Status
+      await Invoice.findByIdAndUpdate(bid.invoice._id, { status: "Pending_Payment" });
 
-      // C. Reject all OTHER bids
+      // 5. Reject other bids
       await Bid.updateMany(
-        { invoice: invoice._id, _id: { $ne: bidId } },
+        { invoice: bid.invoice._id, _id: { $ne: bidId } },
         { status: "Rejected" }
       );
 
-      return res.json({ 
-        success: true, 
-        message: "Bid Accepted! Waiting for Lender to transfer funds.",
-        data: invoice 
+      return res.json({
+        success: true,
+        message: "Bid Accepted! Banking Instructions Generated.",
+        data: {
+            bankDetails: bid.paymentDetails, // Frontend shows this to user
+            instructions: "Please share these details with the Lender for RTGS Transfer."
+        }
       });
     }
 
-    res.status(400).json({ error: "Invalid status" });
-
   } catch (error) {
-    console.error("Bid Response Error:", error);
-    res.status(500).json({ error: "Transaction failed" });
+    console.error("Deal Closure Error:", error);
+    res.status(500).json({ error: "Failed to generate banking instructions." });
   }
 };

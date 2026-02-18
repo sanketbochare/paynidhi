@@ -1,18 +1,19 @@
+import webhookRoutes from "./routes/webhook.routes.js";
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import path from "path";
-import { fileURLToPath } from "url"; // 👈 Import required for ES Modules
-import sellerRoutes from "./routes/seller.routes.js";
+import { fileURLToPath } from "url";
 
 import connectDB from "./lib/db.js";
 
 // Import Routes
-import invoiceRoutes from "./routes/invoice.handler.js"; 
 import authRoutes from "./routes/auth.routes.js";
+import invoiceRoutes from "./routes/invoice.routes.js"; // Renamed from invoice.handler.js? Check your file name.
 import lenderRoutes from "./routes/lender.routes.js";
+import sellerRoutes from "./routes/seller.routes.js";
 
-// 👇 FIX: Define __dirname manually (It does not exist in ES Modules by default)
+// Define __dirname manually (ES Modules)
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -22,18 +23,16 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// 📂 SERVE STATIC FILES
-// This allows the frontend to access uploaded PDFs at http://localhost:5001/uploads/filename.pdf
+// 📂 SERVE STATIC FILES (PDFs)
 app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
 // 🔌 Mount Routes
 app.use("/api/auth", authRoutes);
-
 app.use("/api/invoice", invoiceRoutes);
-
 app.use("/api/lender", lenderRoutes);
-
 app.use("/api/seller", sellerRoutes);
+
+app.use("/api/webhooks", webhookRoutes);
 
 const PORT = process.env.PORT || 5001;
 

@@ -4,33 +4,68 @@ import { encryptField, decryptField } from "../utils/encryption.utils.js";
 
 const lenderSchema = new mongoose.Schema(
   {
+    // ==========================================
     // 1. Core Identity
+    // ==========================================
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     password: { type: String, required: true, minlength: 8 },
 
+    // ==========================================
     // 2. Lender Profile
+    // ==========================================
     companyName: { type: String, trim: true },
+    
     lenderType: {
       type: String,
-      enum: ["BANK", "NBFC", "INDIVIDUAL"],
+      // ✅ FIX: Added "Bank", "NBFC", "Institutional" to match your request
+      enum: ["Bank", "NBFC", "Individual", "Institutional", "BANK", "INDIVIDUAL"], 
       required: true
     },
-    // We encrypt the license to keep it safe
+    
+    // Encrypted License
     lenderLicense: { type: String, trim: true }, 
 
+    // ==========================================
     // 3. Bank Details (Encrypted)
+    // ==========================================
     bankAccount: {
-      accountNumber: { type: String }, // Will be encrypted
-      ifsc: { type: String, uppercase: true }, // Will be encrypted
+      accountNumber: { type: String }, // Encrypted
+      ifsc: { type: String, uppercase: true }, // Encrypted
       beneficiaryName: String,
       bankName: String,
+      mandateId: String // 👈 Added for Auto-Debit Logic
     },
 
-    // 4. Investment Settings
-    maxInvestment: { type: Number, default: 0 },
-    avgDiscountRate: { type: Number, default: 0 }, // e.g., 1.5%
+    // ==========================================
+    // 4. Treasury Management (CRITICAL FOR SETTLEMENT)
+    // ==========================================
+    // 🏦 The "Credit Line" Model
+    totalCreditLimit: { 
+      type: Number, 
+      default: 0 
+    }, // Max amount they agreed to lend
 
-    // 5. Address
+    utilizedLimit: { 
+      type: Number, 
+      default: 0 
+    }, // Amount currently locked in Active Loans
+
+    escrowBalance: { 
+      type: Number, 
+      default: 0 
+    }, // Money pulled from bank, waiting to go to Seller
+
+    isMandateActive: { type: Boolean, default: false },
+
+    // ==========================================
+    // 5. Investment Settings
+    // ==========================================
+    maxInvestment: { type: Number, default: 0 }, // Used to set initial Credit Limit
+    avgDiscountRate: { type: Number, default: 0 }, 
+
+    // ==========================================
+    // 6. Address
+    // ==========================================
     address: {
       city: String,
       state: String,
@@ -46,17 +81,23 @@ const lenderSchema = new mongoose.Schema(
 // 🔒 SECURITY MIDDLEWARE
 // ==========================================
 
-// Pre-save: Encrypt & Hash (Fixed: Removed 'next')
+// Pre-save: Encrypt & Hash
 lenderSchema.pre("save", async function () {
   const lender = this;
 
-  // Hash Password
+  // 1. Hash Password
   if (lender.isModified("password")) {
     const salt = await bcrypt.genSalt(10);
     lender.password = await bcrypt.hash(lender.password, salt);
   }
 
-  // Encrypt Sensitive Data
+  // 2. Sync 'maxInvestment' to 'totalCreditLimit' on first creation
+  if (lender.isNew && lender.maxInvestment > 0) {
+    lender.totalCreditLimit = lender.maxInvestment;
+    lender.isMandateActive = true;
+  }
+
+  // 3. Encrypt Sensitive Data
   if (lender.isModified("lenderLicense")) {
     lender.lenderLicense = encryptField(lender.lenderLicense);
   }

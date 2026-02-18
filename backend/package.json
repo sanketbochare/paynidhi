@@ -29,7 +29,6 @@
     "mongoose": "^9.1.5",
     "multer": "^2.0.2",
     "npm": "^11.8.0",
-    "razorpay": "^2.9.6",
     "resend": "^6.9.1"
   },
   "devDependencies": {

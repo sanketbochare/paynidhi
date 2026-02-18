@@ -67,7 +67,14 @@ const sellerSchema = new mongoose.Schema(
     trustScore: { type: Number, default: 0 },
     
     // 👈 Added back (Required for the Disbursement Logic)
-    walletBalance: { type: Number, default: 0 } 
+    walletBalance: { type: Number, default: 0 },
+    
+    virtualAccount: {
+      va_id: String,
+      accountNumber: String,
+      ifsc: String,
+      bankName: String
+    }
   },
   { timestamps: true }
 );
