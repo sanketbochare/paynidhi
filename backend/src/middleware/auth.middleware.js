@@ -17,7 +17,9 @@ export const protect = async (req, res, next) => {
       // 3. Find User (Check Seller first, then Lender)
       // Note: We included 'role' in the token payload during login, so we use it here.
       if (decoded.role === "seller") {
+        console.log("seller role found!")
         req.user = await Seller.findById(decoded.id).select("-password");
+        console.log(req.user);
       } else if (decoded.role === "lender") {
         req.user = await Lender.findById(decoded.id).select("-password");
       }

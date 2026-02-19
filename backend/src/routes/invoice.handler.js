@@ -8,6 +8,7 @@ import fs from "fs";
 
 const router = Router();
 
+// api/invoice/scan
 router.post(
   "/scan", 
   protect,              
@@ -52,7 +53,7 @@ router.post(
         status: "Verified" // Since verification passed
       });
 
-      console.log("✅ Saved to MongoDB:", newInvoice._id);
+      console.log("✅ Saved to MongoDB:", newInvoice);
 
       res.status(201).json({
         success: true,

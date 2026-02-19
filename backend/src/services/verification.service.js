@@ -8,21 +8,27 @@ const gstRegistryPath = path.resolve("src/data/mock_gst_registry.json");
 const readJSON = (filePath) => {
   try {
     const data = fs.readFileSync(filePath, "utf8");
-    return JSON.parse(data || "[]");
+    return data ? JSON.parse(data) : []
   } catch (error) {
+    console.log("error in reading json file : ", error);
     return [];
   }
 };
 
 export const verifyInvoiceRules = async (invoiceData) => {
   console.log("🕵️ Starting 4-Step Verification...");
-
+  console.log("Invoice Data: ", invoiceData);
   // ====================================================
   // 🏛️ STEP 2: IDENTITY CHECK (GSTIN Validation)
   // ====================================================
-  const registry = readJSON(gstRegistryPath);
   
-  // Check Seller
+  try {
+    const registry = readJSON(gstRegistryPath);
+    // Check Seller
+    if(registry) {
+      console.log(registry)
+    }
+
   const seller = registry.find(entry => entry.gstin === invoiceData.seller_gstin);
   if (!seller) {
     return { success: false, error: "❌ Identity Fraud: Seller GSTIN not found in Government Registry." };
@@ -68,4 +74,7 @@ export const verifyInvoiceRules = async (invoiceData) => {
     success: true, 
     message: "Invoice Validated Successfully" 
   };
+  } catch (error) {
+    console.log(error);
+  }
 };
