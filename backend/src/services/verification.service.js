@@ -1,71 +1,55 @@
-import fs from "fs";
-import path from "path";
-import Invoice from "../models/Invoice.model.js"; // 👈 Import MongoDB Model
+// ⚠️ Check this path carefully. 
+// It assumes: src/services/verification.service.js -> src/models/Invoice.model.js
+// ✅ CORRECT: This imports the database model!
+import Invoice from "../models/Invoice.model.js";
 
-// 📂 Mock Government Database
-const gstRegistryPath = path.resolve("src/data/mock_gst_registry.json");
+export const verifyInvoiceRules = async (extractedData) => {
+  console.log("🔍 Checking Invoice Rules...");
 
-const readJSON = (filePath) => {
+  // DEBUG: Check if Model is loaded
+  if (!Invoice || typeof Invoice.findOne !== 'function') {
+    console.error("❌ CRITICAL ERROR: Invoice Model is not loaded correctly!", Invoice);
+    return { success: false, error: "Server Error: Database Model missing." };
+  }
+
+  const errors = [];
+
+  // 1. Check for Duplicate Invoice Number
   try {
-    const data = fs.readFileSync(filePath, "utf8");
-    return JSON.parse(data || "[]");
+    const existingInvoice = await Invoice.findOne({ 
+      invoiceNumber: extractedData.invoice_number 
+    });
+    
+    if (existingInvoice) {
+      console.log("❌ Duplicate found for:", extractedData.invoice_number);
+      return { 
+        success: false, 
+        error: `Duplicate Invoice! Invoice #${extractedData.invoice_number} already exists.` 
+      };
+    }
   } catch (error) {
-    return [];
+    console.error("Verification DB Error:", error);
+    return { success: false, error: "Database error during verification." };
   }
-};
 
-export const verifyInvoiceRules = async (invoiceData) => {
-  console.log("🕵️ Starting 4-Step Verification...");
-
-  // ====================================================
-  // 🏛️ STEP 2: IDENTITY CHECK (GSTIN Validation)
-  // ====================================================
-  const registry = readJSON(gstRegistryPath);
+  // 2. Validate Amount
+  const amountStr = String(extractedData.total_amount).replace(/,/g, '');
+  const amount = parseFloat(amountStr);
   
-  // Check Seller
-  const seller = registry.find(entry => entry.gstin === invoiceData.seller_gstin);
-  if (!seller) {
-    return { success: false, error: "❌ Identity Fraud: Seller GSTIN not found in Government Registry." };
-  }
-  
-  // Check Buyer
-  const buyer = registry.find(entry => entry.gstin === invoiceData.buyer_gstin);
-  if (!buyer) {
-    return { success: false, error: "❌ Trusted Buyer Check: Buyer GSTIN not found. We only fund verified buyers." };
-  }
+  if (isNaN(amount) || amount <= 0) errors.push("Invalid Total Amount");
 
-  console.log("✅ Step 2 Passed: Identities Verified.");
+  // 3. Validate Dates
+  const invoiceDate = new Date(extractedData.invoice_date);
+  const dueDate = new Date(extractedData.due_date);
 
-  // ====================================================
-  // 🚫 STEP 4: DOUBLE SPENDING CHECK (MongoDB)
-  // ====================================================
-  // We check the Database: "Has this Seller uploaded this Invoice Number before?"
-  
-  const existingInvoice = await Invoice.findOne({
-    invoiceNumber: invoiceData.invoice_number,
-    sellerGst: invoiceData.seller_gstin
-  });
+  if (isNaN(invoiceDate.getTime())) errors.push("Invalid Invoice Date");
+  if (isNaN(dueDate.getTime())) errors.push("Invalid Due Date");
+  if (dueDate < invoiceDate) errors.push("Due Date cannot be before Invoice Date");
 
-  if (existingInvoice) {
-    return { 
-      success: false, 
-      error: `❌ Double Spending Alert: Invoice #${invoiceData.invoice_number} has already been financed/uploaded.` 
-    };
+  if (errors.length > 0) {
+    return { success: false, error: errors.join(", ") };
   }
 
-  console.log("✅ Step 4 Passed: Unique Invoice Verified.");
-
-  // ====================================================
-  // 📧 STEP 3: PO VERIFICATION (Email)
-  // ====================================================
-  // (Currently skipped as per your request, but the logic sits here)
-  /*
-  const emailSent = await sendVerificationEmail(buyer.email, invoiceData);
-  if (!emailSent) return { success: false, error: "Email Verification Failed" };
-  */
-
-  return { 
-    success: true, 
-    message: "Invoice Validated Successfully" 
-  };
+  console.log("✅ Invoice Verification Passed");
+  return { success: true };
 };

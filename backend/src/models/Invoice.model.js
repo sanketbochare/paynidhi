@@ -2,41 +2,54 @@ import mongoose from "mongoose";
 
 const invoiceSchema = new mongoose.Schema(
   {
-    // 1. Link to the Seller (Who uploaded it)
+    // Link to Seller (User who uploaded it)
     seller: { 
       type: mongoose.Schema.Types.ObjectId, 
       ref: "Seller", 
       required: true 
     },
+    
+    // Link to Lender (Filled only when financed)
+    lender: { 
+      type: mongoose.Schema.Types.ObjectId, 
+      ref: "Lender" 
+    },
 
-    // 2. Invoice Details (Extracted by AI)
-    invoiceNumber: { type: String, required: true },
-    poNumber: { type: String }, // Optional
+    // 📄 Invoice Data (Extracted from PDF)
+    invoiceNumber: { type: String, required: true, unique: true },
+    poNumber: { type: String },
     totalAmount: { type: Number, required: true },
-    invoiceDate: { type: Date },
-    dueDate: { type: Date },
-
-    // 3. Parties Involved
-    sellerGst: { type: String, required: true },
-    buyerGst: { type: String, required: true },
+    invoiceDate: { type: Date, required: true },
+    dueDate: { type: Date, required: true },
+    
+    // 🏢 Parties Involved
+    sellerGst: { type: String },
+    buyerGst: { type: String },
     buyerName: { type: String },
 
-    // 4. Status Tracking
+    // 📂 File & Metadata
+    fileUrl: { type: String, required: true }, // Path to PDF
+    description: { type: String },
+    
+    // 🚦 Status Workflow
     status: {
       type: String,
-      enum: ["Pending_Verification", "Verified", "Rejected", "Financed", "Paid"],
-      default: "Pending_Verification"
+      enum: [
+        "Verified",         // AI Scanned & Rules Passed (Ready for Bids)
+        "Pending_Bids",     // (Optional state if you want a separate 'Live' status)
+        "Financed",         // Bid Accepted & Money Moved
+        "Paid",             // Repaid by Buyer/Seller
+        "Rejected"          // Failed Verification
+      ],
+      default: "Verified"
     },
     
-    rejectionReason: { type: String }, // If AI or Admin rejects it
-
-    // 5. File Info
-    fileUrl: { type: String }, // We'll add this later if using S3/Cloudinary
+    // 💰 Financing Details (Populated later)
+    fundedAt: { type: Date },
+    repaymentDate: { type: Date }
   },
   { timestamps: true }
 );
 
-// Compound Index: Ensure (Seller + InvoiceNumber) is unique in DB
-invoiceSchema.index({ seller: 1, invoiceNumber: 1 }, { unique: true });
-
+// ⚠️ THIS IS CRITICAL: It must export the Model, NOT a Router
 export default mongoose.model("Invoice", invoiceSchema);

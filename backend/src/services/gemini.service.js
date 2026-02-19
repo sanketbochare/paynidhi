@@ -1,10 +1,8 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import fs from "fs";
 
-// Initialize Gemini
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-
 // Helper: Convert file to Gemini-readable format
+// (This can stay outside because it doesn't use environment variables)
 function fileToGenerativePart(path, mimeType) {
   return {
     inlineData: {
@@ -16,6 +14,11 @@ function fileToGenerativePart(path, mimeType) {
 
 export const extractInvoiceData = async (filePath) => {
   try {
+    // ✅ MOVED INSIDE: Initialize Gemini here! 
+    // By the time this function is called, dotenv has fully loaded the variables.
+    const apiKey = (process.env.GEMINI_API_KEY || "").trim();
+    const genAI = new GoogleGenerativeAI(apiKey);
+    
     // 🔴 UPDATE: Changed from 'gemini-1.5-flash' to 'gemini-2.0-flash'
     // If '2.0' fails, try 'gemini-1.5-flash-latest'
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
