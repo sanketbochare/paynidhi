@@ -12,7 +12,7 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   const login = (data) => {
-    // { _id, email, companyName?, role, message }
+    // data: { _id, email, companyName?, role, avatarUrl?, message? }
     setUser(data);
     localStorage.setItem("user", JSON.stringify(data));
   };
@@ -20,18 +20,17 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     setUser(null);
     localStorage.removeItem("user");
-    // optional: also call backend /auth/logout to clear cookie
+    // optional: call backend /auth/logout to clear cookie
   };
 
-  // On first load: verify cookie and user
+  // verify cookie and user on first load
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const me = await getMe();          // checks cookie server-side
-        setUser((prev) => prev || me);     // if local user missing, set from server
+        const me = await getMe(); // checks cookie on server
+        setUser((prev) => prev || me);
         localStorage.setItem("user", JSON.stringify(me));
-      } catch (err) {
-        // cookie invalid or missing: ensure logged out
+      } catch {
         setUser(null);
         localStorage.removeItem("user");
       } finally {
@@ -48,6 +47,7 @@ export const AuthProvider = ({ children }) => {
     isAuthenticated: !!user,
     login,
     logout,
+    setUser,
     authLoading: loading,
   };
 

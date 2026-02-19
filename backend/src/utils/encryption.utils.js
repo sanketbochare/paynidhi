@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 
 // ⚠️ CRITICAL: Must be exactly 32 chars in .env
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY; 
+const ENCRYPTION_KEY = (process.env.ENCRYPTION_KEY || "PayNidhiSuperSecretKey1234567890").trim();
 const IV_LENGTH = 16; // AES block size
 
 // Safety Check

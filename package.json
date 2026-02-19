@@ -7,11 +7,12 @@
     "dev": "nodemon backend/src/server.js"
   },
   "dependencies": {
-    "express": "^4.19.2",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
-    "cookie-parser": "^1.4.7",
+    "express": "^4.19.2",
     "mongoose": "^8.3.0",
+    "nodemailer": "^8.0.1",
     "razorpay": "^2.9.4"
   }
 }

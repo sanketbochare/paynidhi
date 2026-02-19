@@ -1,5 +1,11 @@
 // frontend/src/api/authApi.js
-const API_BASE_URL = "http://localhost:5001/api"; // hard-code for now
+const API_BASE_URL = "http://localhost:5001/api"; // adjust for prod
+
+const handleJson = async (res) => {
+  const data = await res.json();
+  if (!res.ok) throw data;
+  return data;
+};
 
 export const registerSeller = async (data) => {
   const res = await fetch(`${API_BASE_URL}/auth/register-seller`, {
@@ -8,8 +14,7 @@ export const registerSeller = async (data) => {
     credentials: "include",
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw await res.json();
-  return res.json();
+  return handleJson(res);
 };
 
 export const loginSeller = async (data) => {
@@ -19,8 +24,7 @@ export const loginSeller = async (data) => {
     credentials: "include",
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw await res.json();
-  return res.json();
+  return handleJson(res);
 };
 
 export const registerLender = async (data) => {
@@ -30,8 +34,7 @@ export const registerLender = async (data) => {
     credentials: "include",
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw await res.json();
-  return res.json();
+  return handleJson(res);
 };
 
 export const loginLender = async (data) => {
@@ -41,8 +44,7 @@ export const loginLender = async (data) => {
     credentials: "include",
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw await res.json();
-  return res.json();
+  return handleJson(res);
 };
 
 export const getMe = async () => {
@@ -50,6 +52,35 @@ export const getMe = async () => {
     method: "GET",
     credentials: "include",
   });
-  if (!res.ok) throw await res.json();
-  return res.json(); // { _id, email, companyName?, role }
+  return handleJson(res); // { _id, email, companyName?, role, avatarUrl? }
+};
+
+export const updateAvatar = async (avatarUrl) => {
+  const res = await fetch(`${API_BASE_URL}/auth/avatar`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ avatarUrl }),
+  });
+  return handleJson(res);
+};
+
+export const requestOtp = async ({ email, purpose }) => {
+  const res = await fetch(`${API_BASE_URL}/auth/request-otp`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, purpose }),
+  });
+  return handleJson(res);
+};
+
+export const verifyOtp = async (body) => {
+  // body: { email, code, purpose, mode, payload? }
+  const res = await fetch(`${API_BASE_URL}/auth/verify-otp`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(body),
+  });
+  return handleJson(res);
 };
