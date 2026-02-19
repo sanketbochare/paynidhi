@@ -102,7 +102,7 @@ export const loginSeller = async (req, res) => {
 
     // 2. Check Password
     if (seller && (await seller.matchPassword(password))) {
-      return res.json({
+      res.json({
         _id: seller._id,
         email: seller.email,
         companyName: seller.companyName,
@@ -110,11 +110,11 @@ export const loginSeller = async (req, res) => {
         message: "Login successful"
       });
     } else {
-      return res.status(401).json({ error: "Invalid email or password" });
+      res.status(401).json({ error: "Invalid email or password" });
     }
   } catch (error) {
     console.error("Login Error:", error);
-    return res.status(500).json({ error: "Server error during login" });
+    res.status(500).json({ error: "Server error during login" });
   }
 };
 export const registerLender = async (req, res) => {
