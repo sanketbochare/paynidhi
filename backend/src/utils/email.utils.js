@@ -1,5 +1,10 @@
 // backend/src/utils/email.utils.js
+import dotenv from "dotenv";
+dotenv.config();
 import nodemailer from "nodemailer";
+
+console.log("GMAIL_USER:", process.env.GMAIL_USER);
+console.log("GMAIL_APP_PASS length:", process.env.GMAIL_APP_PASS?.length);
 
 export const transporter = nodemailer.createTransport({
   service: "gmail",
