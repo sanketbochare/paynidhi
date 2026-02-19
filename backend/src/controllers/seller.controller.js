@@ -1,33 +1,34 @@
 import Invoice from "../models/Invoice.model.js";
 import Bid from "../models/Bid.model.js";
 import Lender from "../models/Lender.model.js";
-import Razorpay from "razorpay"; // 👈 New Import
-
-// Initialize Razorpay
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
-});
-
 // ==========================================
 // 1. DASHBOARD: Get Invoices (This part was perfect ✅)
 // ==========================================
 export const getMyInvoices = async (req, res) => {
   try {
     const sellerId = req.user._id;
-    const invoices = await Invoice.find({ seller: sellerId }).sort({ createdAt: -1 }).lean();
 
+    // 1. Find all invoices by this seller
+    const invoices = await Invoice.find({ seller: sellerId })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // 2. Attach ONLY the Bid Count to each invoice
     const dashboardData = await Promise.all(
       invoices.map(async (invoice) => {
-        const bids = await Bid.find({ invoice: invoice._id })
-          .populate("lender", "companyName lenderType")
-          .sort({ interestRate: 1 });
+        // ⚡️ PRO MOVE: Use countDocuments instead of fetching full bid objects
+        const bidCount = await Bid.countDocuments({ invoice: invoice._id });
 
-        return { ...invoice, bids: bids, bidCount: bids.length };
+        return {
+          ...invoice,
+          bidCount: bidCount // We removed the heavy 'bids' array entirely!
+        };
       })
     );
+
     res.json(dashboardData);
   } catch (error) {
+    console.error("Seller Dashboard Error:", error);
     res.status(500).json({ error: "Failed to load invoices" });
   }
 };
@@ -35,11 +36,13 @@ export const getMyInvoices = async (req, res) => {
 // ==========================================
 // 2. DEAL CLOSURE: Generate Banking Instructions (Updated ⚡️)
 // ==========================================
+// ==========================================
+// 2. DEAL CLOSURE: Accept/Reject Bid (Simplified)
+// ==========================================
 export const respondToBid = async (req, res) => {
   try {
     const { status } = req.body;
     const { bidId } = req.params;
-    const sellerId = req.user._id;
 
     const bid = await Bid.findById(bidId).populate("invoice");
     if (!bid) return res.status(404).json({ error: "Bid not found" });
@@ -51,37 +54,21 @@ export const respondToBid = async (req, res) => {
       return res.json({ message: "Bid rejected successfully." });
     }
 
-    // B. HANDLE ACCEPTANCE (The "Real" Logic)
+    // B. HANDLE ACCEPTANCE (Simple State Update)
     if (status === "Accepted") {
       
-      // 1. Don't move money yet! Create the Virtual Account first.
-      // This is the "Bank Account" the Lender must pay into.
-      const va = await razorpay.virtualAccounts.create({
-        receiver_types: ["bank_account"],
-        description: `Funding for Invoice #${bid.invoice.invoiceNumber}`,
-        notes: { 
-            bidId: bidId,
-            invoiceId: bid.invoice._id.toString() 
-        }
-      });
-
-      // 2. Save these details so the Lender can see them
-      bid.paymentDetails = {
-        va_id: va.id,
-        accountNumber: va.receivers[0].account_number, // e.g. 111222000345
-        ifsc: va.receivers[0].ifsc,                   // e.g. UTIB0000000
-        bankName: va.receivers[0].bank_name,
-        status: "AWAITING_RTGS"
-      };
-
-      // 3. Lock the Deal
-      bid.status = "Accepted"; // Accepted, but not yet "Financed" (Funded)
+      // 1. Lock the Deal
+      bid.status = "Accepted"; 
       await bid.save();
 
-      // 4. Update Invoice Status
-      await Invoice.findByIdAndUpdate(bid.invoice._id, { status: "Pending_Payment" });
+      // 2. Update Invoice Status to "Financed" (or "Accepted")
+      // We also link the winning Lender to the Invoice for easy tracking
+      await Invoice.findByIdAndUpdate(bid.invoice._id, { 
+        status: "Financed",
+        lender: bid.lender 
+      });
 
-      // 5. Reject other bids
+      // 3. Reject all other competing bids for this invoice
       await Bid.updateMany(
         { invoice: bid.invoice._id, _id: { $ne: bidId } },
         { status: "Rejected" }
@@ -89,16 +76,51 @@ export const respondToBid = async (req, res) => {
 
       return res.json({
         success: true,
-        message: "Bid Accepted! Banking Instructions Generated.",
+        message: "Bid Accepted! Deal Closed.",
         data: {
-            bankDetails: bid.paymentDetails, // Frontend shows this to user
-            instructions: "Please share these details with the Lender for RTGS Transfer."
+            bidId: bid._id,
+            status: "Accepted"
         }
       });
     }
 
   } catch (error) {
     console.error("Deal Closure Error:", error);
-    res.status(500).json({ error: "Failed to generate banking instructions." });
+    res.status(500).json({ error: "Failed to process bid." });
+  }
+};
+// @desc    Get a single invoice and all bids placed on it
+// @route   GET /api/seller/invoice/:invoiceId/bids
+export const getInvoiceWithBids = async (req, res) => {
+  try {
+    const { invoiceId } = req.params;
+    const sellerId = req.user._id;
+
+    // 1. Fetch the specific invoice (and ensure it belongs to this seller)
+    const invoice = await Invoice.findOne({ _id: invoiceId, seller: sellerId }).lean();
+    
+    if (!invoice) {
+      return res.status(404).json({ error: "Invoice not found or unauthorized" });
+    }
+
+    // 2. Fetch all bids for this invoice
+    const bids = await Bid.find({ invoice: invoiceId })
+      .populate("lender", "companyName lenderType") // Bring in Lender details
+      .sort({ interestRate: 1 }) // Sort: Lowest interest rate first (Best for Seller)
+      .lean();
+
+    // 3. Send it all together to the frontend
+    res.json({
+      success: true,
+      data: {
+        invoice,
+        bids,
+        totalBids: bids.length
+      }
+    });
+
+  } catch (error) {
+    console.error("Error fetching invoice bids:", error);
+    res.status(500).json({ error: "Failed to load bids" });
   }
 };

@@ -12,7 +12,8 @@ import authRoutes from "./routes/auth.routes.js";
 import invoiceRoutes from "./routes/invoice.routes.js";
 import lenderRoutes from "./routes/lender.routes.js";
 import sellerRoutes from "./routes/seller.routes.js";
-import webhookRoutes from "./routes/webhook.routes.js";
+import paymentRoutes from "./routes/payment.routes.js";
+
 
 // ES module __dirname fix
 const __filename = fileURLToPath(import.meta.url);
@@ -38,7 +39,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/invoice", invoiceRoutes);
 app.use("/api/lender", lenderRoutes);
 app.use("/api/seller", sellerRoutes);
-app.use("/api/webhooks", webhookRoutes);
+app.use("/api/payment", paymentRoutes);
 
 const PORT = process.env.PORT || 5001;
 
