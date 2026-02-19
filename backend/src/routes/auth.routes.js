@@ -6,6 +6,9 @@ import {
   registerLender,
   loginLender,
   getMe,
+  updateAvatar,
+  requestOtp,
+  verifyOtp,
 } from "../controllers/auth.controller.js";
 import { protect } from "../middleware/auth.middleware.js";
 
@@ -21,5 +24,12 @@ router.post("/login-lender", loginLender);
 
 // Get current user from cookie
 router.get("/me", protect, getMe);
+
+// Avatar update
+router.put("/avatar", protect, updateAvatar);
+
+// OTP
+router.post("/request-otp", requestOtp);
+router.post("/verify-otp", verifyOtp);
 
 export default router;
