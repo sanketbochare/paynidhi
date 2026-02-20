@@ -3,9 +3,12 @@ import multer from "multer";
 import { 
   uploadInvoice, 
   getAllInvoices, 
-  getInvoiceById 
+  getInvoiceById,
+  sendInvoiceVefificationMail,
+  buyerInvoiceVerification
 } from "../controllers/invoice.controller.js"; // 👈 Imports logic from Controller
 import { protect, authorize } from "../middleware/auth.middleware.js";
+
 
 const router = Router();
 
@@ -42,4 +45,15 @@ router.get(
   getInvoiceById
 );
 
+// Endpoint: POST /api/invoice/send-verification-mail/:id
+router.post(
+  "/send-verification-mail",
+  protect,
+  sendInvoiceVefificationMail
+);
+
+router.get(
+  "/verify-invoice",
+  buyerInvoiceVerification
+);
 export default router;

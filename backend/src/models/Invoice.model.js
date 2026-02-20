@@ -26,6 +26,7 @@ const invoiceSchema = new mongoose.Schema(
     sellerGst: { type: String },
     buyerGst: { type: String },
     buyerName: { type: String },
+    buyerEmail: {type: String},
 
     // 📂 File & Metadata
     fileUrl: { type: String, required: true }, // Path to PDF
@@ -36,7 +37,7 @@ const invoiceSchema = new mongoose.Schema(
       type: String,
       enum: [
         "Verified",         // AI Scanned & Rules Passed (Ready for Bids)
-        "Pending_Bids",     // (Optional state if you want a separate 'Live' status)
+        "Live",     // (Optional state if you want a separate 'Live' status)
         "Financed",         // Bid Accepted & Money Moved
         "Paid",             // Repaid by Buyer/Seller
         "Rejected"          // Failed Verification
