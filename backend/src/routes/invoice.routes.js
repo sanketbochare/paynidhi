@@ -3,7 +3,8 @@ import multer from "multer";
 import { 
   uploadInvoice, 
   getAllInvoices, 
-  getInvoiceById 
+  getInvoiceById,
+  getSellerInvoices,
 } from "../controllers/invoice.controller.js"; // 👈 Imports logic from Controller
 import { protect, authorize } from "../middleware/auth.middleware.js";
 
@@ -40,6 +41,14 @@ router.get(
   "/:id", 
   protect, 
   getInvoiceById
+);
+
+// GET /api/invoice/my
+router.get(
+  "/my",
+  protect,
+  authorize("seller"),
+  getSellerInvoices
 );
 
 export default router;

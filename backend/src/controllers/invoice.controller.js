@@ -103,3 +103,18 @@ export const getInvoiceById = async (req, res) => {
     res.status(500).json({ error: "Server Error" });
   }
 };
+
+export const getSellerInvoices = async (req, res) => {
+  try {
+    const sellerId = req.user._id;
+
+    const invoices = await Invoice.find({ seller: sellerId })
+      .sort({ createdAt: -1 })
+      .limit(5); // recent 5
+
+    res.json(invoices);
+  } catch (error) {
+    console.error("Get seller invoices error:", error);
+    res.status(500).json({ error: "Server Error" });
+  }
+};

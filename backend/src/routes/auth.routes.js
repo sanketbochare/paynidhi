@@ -11,6 +11,7 @@ import {
   verifyOtp,
 } from "../controllers/auth.controller.js";
 import { protect } from "../middleware/auth.middleware.js";
+import { uploadAvatar } from "../middleware/avatarUpload.middleware.js";
 
 const router = express.Router();
 
@@ -25,11 +26,12 @@ router.post("/login-lender", loginLender);
 // Get current user from cookie
 router.get("/me", protect, getMe);
 
-// Avatar update
+// Avatar update (URL-based)
 router.put("/avatar", protect, updateAvatar);
 
 // OTP
 router.post("/request-otp", requestOtp);
-router.post("/verify-otp", verifyOtp);
+// verify-otp now accepts optional avatar file
+router.post("/verify-otp", uploadAvatar, verifyOtp);
 
 export default router;

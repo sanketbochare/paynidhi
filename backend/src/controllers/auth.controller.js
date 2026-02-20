@@ -1,10 +1,10 @@
-// backend/src/controllers/auth.controller.js
 import Seller from "../models/Seller.model.js";
 import Lender from "../models/Lender.model.js";
 import jwt from "jsonwebtoken";
 import { hashField } from "../utils/encryption.utils.js";
 import Otp from "../models/Otp.model.js";
 import { sendOtpEmail } from "../utils/email.utils.js";
+import { getRandomAvatarUrl } from "../utils/avatar.utils.js";
 
 const generateToken = (id, role) => {
   return jwt.sign({ id, role }, process.env.JWT_SECRET, {
@@ -22,7 +22,7 @@ const sendAuthCookie = (res, token) => {
   });
 };
 
-// REGISTER SELLER
+// Simplified REGISTER SELLER (legacy - can be deprecated)
 export const registerSeller = async (req, res) => {
   try {
     const {
@@ -30,15 +30,13 @@ export const registerSeller = async (req, res) => {
       password,
       companyName,
       gstNumber,
-      panNumber,
-      bankAccount,
       businessType,
       industry,
       annualTurnover,
+      beneficiaryName,
     } = req.body;
 
     const gstHash = hashField(gstNumber);
-    const panHash = hashField(panNumber);
 
     const sellerExists = await Seller.findOne({ email });
     if (sellerExists) {
@@ -46,13 +44,8 @@ export const registerSeller = async (req, res) => {
     }
 
     const isGstNumDuplicate = await Seller.findOne({ gstHash });
-    const isPanNumDuplicate = await Seller.findOne({ panHash });
-
     if (isGstNumDuplicate) {
       return res.status(400).json({ error: "GST Number already registered" });
-    }
-    if (isPanNumDuplicate) {
-      return res.status(400).json({ error: "PAN Number already registered" });
     }
 
     const seller = await Seller.create({
@@ -60,14 +53,15 @@ export const registerSeller = async (req, res) => {
       password,
       companyName,
       gstNumber,
-      panNumber,
       gstHash,
-      panHash,
-      bankAccount,
-      businessType,
-      industry,
+      businessType: businessType || "Services",
+      industry: industry || "IT",
       annualTurnover: annualTurnover || 0,
-      isOnboarded: true,
+      bankAccount: {
+        beneficiaryName: beneficiaryName || "",
+      },
+      isOnboarded: false, // KYC pending
+      kycStatus: "partial",
     });
 
     if (seller) {
@@ -80,7 +74,9 @@ export const registerSeller = async (req, res) => {
         companyName: seller.companyName,
         role: "seller",
         avatarUrl: seller.avatarUrl || "",
-        message: "Seller registered successfully",
+        isOnboarded: seller.isOnboarded,
+        kycStatus: seller.kycStatus,
+        message: "Seller registered successfully. Complete KYC to get started.",
       });
     }
   } catch (error) {
@@ -105,6 +101,8 @@ export const loginSeller = async (req, res) => {
         companyName: seller.companyName,
         role: "seller",
         avatarUrl: seller.avatarUrl || "",
+        isOnboarded: seller.isOnboarded,
+        kycStatus: seller.kycStatus,
         message: "Login successful",
       });
     } else {
@@ -115,7 +113,7 @@ export const loginSeller = async (req, res) => {
   }
 };
 
-// REGISTER LENDER
+// REGISTER LENDER (simplified similarly)
 export const registerLender = async (req, res) => {
   try {
     const {
@@ -124,9 +122,6 @@ export const registerLender = async (req, res) => {
       companyName,
       lenderType,
       lenderLicense,
-      bankAccount,
-      maxInvestment,
-      address,
     } = req.body;
 
     const lenderExists = await Lender.findOne({ email });
@@ -140,11 +135,9 @@ export const registerLender = async (req, res) => {
       companyName,
       lenderType,
       lenderLicense,
-      bankAccount,
-      maxInvestment,
-      address,
-      isOnboarded: true,
-      totalCreditLimit: maxInvestment || 0,
+      isOnboarded: false,
+      kycStatus: "partial",
+      totalCreditLimit: 0,
       utilizedLimit: 0,
       escrowBalance: 0,
     });
@@ -159,7 +152,9 @@ export const registerLender = async (req, res) => {
         companyName: lender.companyName,
         role: "lender",
         avatarUrl: lender.avatarUrl || "",
-        message: "Lender registered successfully",
+        isOnboarded: lender.isOnboarded,
+        kycStatus: lender.kycStatus,
+        message: "Lender registered successfully. Complete KYC to get started.",
       });
     }
   } catch (error) {
@@ -183,6 +178,8 @@ export const loginLender = async (req, res) => {
         companyName: lender.companyName,
         role: "lender",
         avatarUrl: lender.avatarUrl || "",
+        isOnboarded: lender.isOnboarded,
+        kycStatus: lender.kycStatus,
         message: "Login successful",
       });
     } else {
@@ -193,7 +190,7 @@ export const loginLender = async (req, res) => {
   }
 };
 
-// GET CURRENT USER
+// GET CURRENT USER (enhanced with KYC status)
 export const getMe = async (req, res) => {
   if (!req.user) {
     return res.status(401).json({ error: "Not authenticated" });
@@ -205,10 +202,12 @@ export const getMe = async (req, res) => {
     companyName: req.user.companyName,
     role: req.user.businessType ? "seller" : "lender",
     avatarUrl: req.user.avatarUrl || "",
+    isOnboarded: req.user.isOnboarded,
+    kycStatus: req.user.kycStatus,
   });
 };
 
-// UPDATE AVATAR (URL-based)
+// UPDATE AVATAR
 export const updateAvatar = async (req, res) => {
   try {
     const { avatarUrl } = req.body;
@@ -219,14 +218,12 @@ export const updateAvatar = async (req, res) => {
     let updatedUser;
 
     if (req.user.businessType) {
-      // seller
       updatedUser = await Seller.findByIdAndUpdate(
         req.user._id,
         { avatarUrl: avatarUrl || "" },
         { new: true }
       ).select("-password");
     } else {
-      // lender
       updatedUser = await Lender.findByIdAndUpdate(
         req.user._id,
         { avatarUrl: avatarUrl || "" },
@@ -246,19 +243,20 @@ export const updateAvatar = async (req, res) => {
     res.status(500).json({ error: "Failed to update avatar" });
   }
 };
+
 const generateOtpCode = () =>
   Math.floor(100000 + Math.random() * 900000).toString();
 
-// 1) Request OTP for login or register
+// 1) Request OTP
 export const requestOtp = async (req, res) => {
   try {
-    const { email, purpose } = req.body; // purpose: "login" | "register"
+    const { email, purpose } = req.body;
     if (!email || !purpose) {
       return res.status(400).json({ error: "Email and purpose are required" });
     }
 
     const code = generateOtpCode();
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 min
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
 
     await Otp.deleteMany({ email, purpose, verified: false });
 
@@ -277,12 +275,12 @@ export const requestOtp = async (req, res) => {
   }
 };
 
-// 2) Verify OTP and finalize login/register
+// 2) Verify OTP and finalize (UPDATED FOR SIMPLIFIED REGISTRATION)
 export const verifyOtp = async (req, res) => {
   try {
-    const { email, code, purpose, mode, payload } = req.body;
-    // mode: "seller" | "lender"
-    // payload: registration data when purpose === "register"
+    const { email, code, purpose, mode } = req.body;
+    const payload = req.body.payload ? JSON.parse(req.body.payload) : null;
+    const avatarFile = req.file;
 
     if (!email || !code || !purpose || !mode) {
       return res.status(400).json({ error: "Missing fields" });
@@ -301,93 +299,84 @@ export const verifyOtp = async (req, res) => {
 
     let user;
     let role = mode;
+    let avatarUrl = "";
 
     if (purpose === "register") {
-      // Registration: create Seller or Lender
+      if (avatarFile) {
+        avatarUrl = `/uploads/avatars/${avatarFile.filename}`;
+      } else {
+        avatarUrl = getRandomAvatarUrl();
+      }
+
       if (mode === "seller") {
         const {
           companyName,
           gstNumber,
-          panNumber,
-          bankAccount,
           businessType,
           industry,
           annualTurnover,
+          beneficiaryName,
+          password,
         } = payload;
 
         const gstHash = hashField(gstNumber);
-        const panHash = hashField(panNumber);
 
         const sellerExists = await Seller.findOne({ email });
         if (sellerExists) {
-          return res
-            .status(400)
-            .json({ error: "Email already registered as seller" });
+          return res.status(400).json({ error: "Email already registered as seller" });
         }
 
         const isGstNumDuplicate = await Seller.findOne({ gstHash });
-        const isPanNumDuplicate = await Seller.findOne({ panHash });
-
         if (isGstNumDuplicate) {
-          return res
-            .status(400)
-            .json({ error: "GST Number already registered" });
-        }
-        if (isPanNumDuplicate) {
-          return res
-            .status(400)
-            .json({ error: "PAN Number already registered" });
+          return res.status(400).json({ error: "GST Number already registered" });
         }
 
         user = await Seller.create({
           email,
-          password: payload.password,
+          password,
           companyName,
           gstNumber,
-          panNumber,
           gstHash,
-          panHash,
-          bankAccount,
-          businessType,
-          industry,
+          businessType: businessType || "Services",
+          industry: industry || "IT",
           annualTurnover: annualTurnover || 0,
-          isOnboarded: true,
+          beneficiaryName,
+          bankAccount: {
+            beneficiaryName,
+          },
+          isOnboarded: false, // KYC pending
+          kycStatus: "partial",
+          avatarUrl,
         });
       } else {
-        // lender
+        // lender (simplified)
         const {
           companyName,
           lenderType,
           lenderLicense,
-          bankAccount,
-          maxInvestment,
-          address,
+          password,
         } = payload;
 
         const lenderExists = await Lender.findOne({ email });
         if (lenderExists) {
-          return res
-            .status(400)
-            .json({ error: "Email already registered as lender" });
+          return res.status(400).json({ error: "Email already registered as lender" });
         }
 
         user = await Lender.create({
           email,
-          password: payload.password,
+          password,
           companyName,
           lenderType,
           lenderLicense,
-          bankAccount,
-          maxInvestment,
-          address,
-          isOnboarded: true,
-          totalCreditLimit: maxInvestment || 0,
+          isOnboarded: false,
+          kycStatus: "partial",
+          totalCreditLimit: 0,
           utilizedLimit: 0,
           escrowBalance: 0,
+          avatarUrl,
         });
       }
     } else if (purpose === "login") {
-      // Login: just find and validate password separately in /login, but here we assume user exists
       if (mode === "seller") {
         user = await Seller.findOne({ email });
         if (!user) {
@@ -398,6 +387,11 @@ export const verifyOtp = async (req, res) => {
         if (!user) {
           return res.status(400).json({ error: "Lender not found" });
         }
+      }
+
+      if (!user.avatarUrl) {
+        user.avatarUrl = getRandomAvatarUrl();
+        await user.save();
       }
     }
 
@@ -410,10 +404,9 @@ export const verifyOtp = async (req, res) => {
       companyName: user.companyName,
       role,
       avatarUrl: user.avatarUrl || "",
-      message:
-        purpose === "register"
-          ? "Registration complete"
-          : "Login verified",
+      isOnboarded: user.isOnboarded,
+      kycStatus: user.kycStatus,
+      message: purpose === "register" ? "Registration complete. Complete KYC to continue." : "Login verified",
     });
   } catch (error) {
     console.error("Verify OTP error:", error);
