@@ -39,7 +39,7 @@ export const registerSeller = async (req, res) => {
       businessType,
       industry,
       annualTurnover,
-      beneficiaryName,
+      // beneficiaryName,
     } = req.body;
 
   
@@ -52,8 +52,10 @@ export const registerSeller = async (req, res) => {
       return res.status(400).json({ error: `Registration Failed: GSTIN belongs to '${verifiedCompany.companyName}', not '${companyName}'.` });
     }
     // ==========================================
-    console.log("done!")
+    console.log("gst company verification done!")
     const gstHash = hashField(gstNumber);
+    console.log(typeof gstHash);
+    console.log(gstNumber, gstHash);
     // const panHash = hashField(panNumber);
 
     const sellerExists = await Seller.findOne({ email });
@@ -63,7 +65,8 @@ export const registerSeller = async (req, res) => {
       return res.status(400).json({ error: "Email already registered" });
     }
 
-    const isGstNumDuplicate = await Seller.findOne({ gstHash });
+    const isGstNumDuplicate = await Seller.findOne({ gstHash: gstHash });
+    console.log("isGstNumDuplicate: ", isGstNumDuplicate);
     // const isPanNumDuplicate = await Seller.findOne({ panHash });
 
     if (isGstNumDuplicate) {
@@ -94,7 +97,8 @@ export const registerSeller = async (req, res) => {
       const token = generateToken(seller._id, "seller");
       sendAuthCookie(res, token);
 
-      res.status(201).json({
+      console.log("seller created successfully...", seller._id);
+      return res.status(201).json({
         _id: seller._id,
         email: seller.email,
         companyName: seller.companyName,
@@ -104,7 +108,7 @@ export const registerSeller = async (req, res) => {
         kycStatus: seller.kycStatus,
         message: "Seller registered successfully. Complete KYC to get started.",
       });
-    }
+    } 
   } catch (error) {
     console.error("Registration Error:", error);
     res.status(500).json({ error: error.message });
