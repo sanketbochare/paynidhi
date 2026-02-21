@@ -1,6 +1,7 @@
 import express from "express";
 // Auth Controllers (if you handle seller auth here, otherwise they belong in auth.routes.js)
 import { registerSeller, loginSeller } from "../controllers/auth.controller.js"; 
+import { kycVerification } from "../controllers/kyc.controller.js";
 
 // Seller Controllers
 import { 
@@ -27,5 +28,8 @@ router.get("/invoice/:invoiceId/bids", protect, authorize("seller"), getInvoiceW
 
 // 3. The Settlement Trigger: Accept/Reject a bid
 router.post("/bid-response/:bidId", protect, authorize("seller"), respondToBid);
+
+// route : post : /api/seller/kyc-verification
+router.post("/kyc-verification", protect, authorize("seller"), kycVerification);
 
 export default router;

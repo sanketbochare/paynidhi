@@ -1,10 +1,12 @@
 // backend/src/controllers/auth.controller.js
 import Seller from "../models/Seller.model.js";
 import Lender from "../models/Lender.model.js";
+import MockCompany from "../models/MockCompany.model.js";
 import jwt from "jsonwebtoken";
 import { hashField } from "../utils/encryption.utils.js";
 import Otp from "../models/Otp.model.js";
 import { sendOtpEmail } from "../utils/email.utils.js";
+
 
 const generateToken = (id, role) => {
   return jwt.sign({ id, role }, process.env.JWT_SECRET, {
@@ -23,50 +25,67 @@ const sendAuthCookie = (res, token) => {
 };
 
 // REGISTER SELLER
+// REGISTER SELLER
 export const registerSeller = async (req, res) => {
+  console.log("seller registration started!!!")
   try {
     const {
       email,
       password,
       companyName,
       gstNumber,
-      panNumber,
-      bankAccount,
+      // panNumber,
+      // bankAccount,
       businessType,
       industry,
       annualTurnover,
     } = req.body;
 
+  
+    console.log("verifying company gstin...")
+    const verifiedCompany = await MockCompany.findOne({ gstin: gstNumber });
+    if (!verifiedCompany) {
+      return res.status(400).json({ error: "Registration Failed: GSTIN not found in official Govt records." });
+    }
+    if (verifiedCompany.companyName.toLowerCase() !== companyName.toLowerCase()) {
+      return res.status(400).json({ error: `Registration Failed: GSTIN belongs to '${verifiedCompany.companyName}', not '${companyName}'.` });
+    }
+    // ==========================================
+    console.log("done!")
     const gstHash = hashField(gstNumber);
-    const panHash = hashField(panNumber);
+    // const panHash = hashField(panNumber);
 
     const sellerExists = await Seller.findOne({ email });
+    // ... the rest of your existing registerSeller logic stays exactly the same ...
     if (sellerExists) {
+      console.log("duplicate seller found (email)")
       return res.status(400).json({ error: "Email already registered" });
     }
 
     const isGstNumDuplicate = await Seller.findOne({ gstHash });
-    const isPanNumDuplicate = await Seller.findOne({ panHash });
+    // const isPanNumDuplicate = await Seller.findOne({ panHash });
 
     if (isGstNumDuplicate) {
+      console.log("gst number is duplicate")
       return res.status(400).json({ error: "GST Number already registered" });
     }
-    if (isPanNumDuplicate) {
-      return res.status(400).json({ error: "PAN Number already registered" });
-    }
+    // if (isPanNumDuplicate) {
+    //   return res.status(400).json({ error: "PAN Number already registered" });
+    // }
 
+    
     const seller = await Seller.create({
       email,
       password,
       companyName,
       gstNumber,
-      panNumber,
+      // panNumber,
       gstHash,
-      panHash,
-      bankAccount,
+      // panHash,
+      // bankAccount,
       businessType,
       industry,
-      annualTurnover: annualTurnover || 0,
+      annualTurnover: Number(annualTurnover) || 0,
       isOnboarded: true,
     });
 
