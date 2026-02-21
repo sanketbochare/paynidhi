@@ -3,11 +3,13 @@ import express from "express";
 import { registerSeller, loginSeller } from "../controllers/auth.controller.js"; 
 import { kycVerification } from "../controllers/kyc.controller.js";
 
-// Seller Controllers
+// Seller Controllers - ALL functions now properly imported
 import { 
   getMyInvoices, 
   respondToBid, 
-  getInvoiceWithBids 
+  getInvoiceWithBids,
+  completeKyc,
+  dashboardSummary  // ✅ ADDED THIS
 } from "../controllers/seller.controller.js";
 
 // Middleware
@@ -17,16 +19,19 @@ const router = express.Router();
 
 // ==========================================
 // SELLER ROUTES
-// All routes should be protected and restricted to 'seller' role
+// All routes protected & seller-only
 // ==========================================
 
-// 1. Dashboard: Get all invoices for the logged-in seller
+// 1. ✅ DASHBOARD SUMMARY (NEW - fixes your crash)
+router.get("/dashboard-summary", protect, authorize("seller"), dashboardSummary);
+
+// 2. Get all seller invoices
 router.get("/invoices", protect, authorize("seller"), getMyInvoices);
 
-// 2. View Single Invoice & Its Bids (The new route!)
+// 3. Single invoice + bids
 router.get("/invoice/:invoiceId/bids", protect, authorize("seller"), getInvoiceWithBids);
 
-// 3. The Settlement Trigger: Accept/Reject a bid
+// 4. Accept/Reject bid
 router.post("/bid-response/:bidId", protect, authorize("seller"), respondToBid);
 
 // route : post : /api/seller/kyc-verification

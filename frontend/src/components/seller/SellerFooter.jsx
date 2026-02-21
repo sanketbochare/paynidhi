@@ -8,7 +8,7 @@ const SellerFooter = () => {
         <p>© 2026 PayNidhi Institutional Finance</p>
         <div className="flex gap-4">
           <button className="hover:text-indigo-600">Security</button>
-          <button className="hover:text-indigo-600">API Status</button>
+          <button className="hover:text-indigo-600">API status</button>
           <button className="hover:text-indigo-600">Support</button>
         </div>
       </div>
