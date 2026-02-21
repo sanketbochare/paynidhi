@@ -40,6 +40,17 @@ export const kycVerification = async (req, res) => {
             return res.status(404).json({ message: "Seller not found." });
         }
 
+        let tempAccno = bankAccount.accountNumber;
+        if(seller.bankAccount.length > 0) {
+            seller.bankAccount.forEach(acc => {
+                // console.log(acc.accountNumber, " ", tempAccno)
+                if(acc.accountNumberHash === hashField(tempAccno)) {
+                    console.log("duplicate account number found!!");
+                    return res.status(404).json({"message": "duplicate account number found"})
+                }
+            })
+        }
+
         // Update fields
         seller.panNumber = panNumber; // Will be encrypted by pre-save hook
         seller.panHash = hashedPan;   // Our Blind Index for searching
