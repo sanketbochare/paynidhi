@@ -2,6 +2,7 @@ import Razorpay from "razorpay";
 import crypto from "crypto";
 import Bid from "../models/Bid.model.js";
 import Invoice from "../models/Invoice.model.js";
+import Seller from "../models/Seller.model.js"; 
 
 // 1. Create Order
 export const createOrder = async (req, res) => {
@@ -41,6 +42,8 @@ export const createOrder = async (req, res) => {
 };
 
 // 2. Verify Payment
+
+
 export const verifyPayment = async (req, res) => {
   try {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, bidId } = req.body;
@@ -52,13 +55,25 @@ export const verifyPayment = async (req, res) => {
       .digest("hex");
 
     if (expectedSignature === razorpay_signature) {
-      const bid = await Bid.findById(bidId);
+      // 1. Get the Bid and populate the Invoice so we know who the Seller is
+      const bid = await Bid.findById(bidId).populate("invoice");
       bid.status = "Funded";
       await bid.save();
 
-      await Invoice.findByIdAndUpdate(bid.invoice, { status: "Funded" });
+      // 2. Update the Invoice
+      const invoice = await Invoice.findById(bid.invoice._id);
+      invoice.status = "Funded";
+      await invoice.save();
 
-      return res.json({ success: true, message: "Payment verified successfully!" });
+      // 3. 💸 THE MONEY MOVES HERE: Credit the Seller's Wallet
+      const seller = await Seller.findById(invoice.seller); // Assuming invoice has a 'seller' ID
+      if (seller) {
+        seller.walletBalance = (seller.walletBalance || 0) + bid.loanAmount;
+        await seller.save();
+        console.log(`✅ Credited ₹${bid.loanAmount} to Seller: ${seller.name}`);
+      }
+
+      return res.json({ success: true, message: "Payment verified and Seller wallet credited!" });
     } else {
       return res.status(400).json({ success: false, error: "Invalid signature" });
     }

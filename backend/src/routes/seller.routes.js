@@ -1,4 +1,7 @@
 import express from "express";
+// Auth Controllers (if you handle seller auth here, otherwise they belong in auth.routes.js)
+import { registerSeller, loginSeller } from "../controllers/auth.controller.js"; 
+import { kycVerification } from "../controllers/kyc.controller.js";
 
 // Seller Controllers - ALL functions now properly imported
 import { 
@@ -31,7 +34,7 @@ router.get("/invoice/:invoiceId/bids", protect, authorize("seller"), getInvoiceW
 // 4. Accept/Reject bid
 router.post("/bid-response/:bidId", protect, authorize("seller"), respondToBid);
 
-// 5. ✅ COMPLETE KYC (NEW)
-router.post("/complete-kyc", protect, authorize("seller"), completeKyc);
+// route : post : /api/seller/kyc-verification
+router.post("/kyc-verification", protect, authorize("seller"), kycVerification);
 
 export default router;
