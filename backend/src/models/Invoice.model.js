@@ -45,7 +45,7 @@ const invoiceSchema = new mongoose.Schema(
         "Paid",             // Repaid by Buyer/Seller
         "Rejected"          // Failed Verification
       ],
-      default: "Verified"
+      default: "Pending_Buyer_Approval"
     },
     
     // 💰 Financing Details (Populated later)

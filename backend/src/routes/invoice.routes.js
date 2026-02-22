@@ -5,6 +5,8 @@ import {
   getAllInvoices, 
   getInvoiceById,
   getSellerInvoices,
+  verifyInvoiceBuyerWithEmail,
+  verifyInvoice
 } from "../controllers/invoice.controller.js"; // 👈 Imports logic from Controller
 import { protect, authorize } from "../middleware/auth.middleware.js";
 
@@ -50,5 +52,18 @@ router.get(
   authorize("seller"),
   getSellerInvoices
 );
+
+router.post(
+  "/verify-buyer",
+  protect,
+  authorize("seller"),
+  verifyInvoiceBuyerWithEmail
+)
+
+// route: api/invoice/verify-invoice
+router.get(
+  "/verify-invoice",
+  verifyInvoice
+)
 
 export default router;
