@@ -4,7 +4,7 @@ import { requestOtp, verifyOtp } from "../../api/authApi";
 import { useAuth } from "../../context/AuthContext";
 import toast from "react-hot-toast";
 import OtpVerifyCard from "../../components/auth/OtpVerifyCard";
-import { ShieldCheck } from "lucide-react";
+import { ShieldCheck, Camera } from "lucide-react"; // Added Camera for the avatar icon
 
 const RegisterPage = () => {
   const [mode, setMode] = useState("seller");
@@ -18,6 +18,8 @@ const RegisterPage = () => {
     industry: "",
     annualTurnover: "",
     beneficiaryName: "",
+    lenderType: "", // Added for lender
+    lenderLicense: "", // Added for lender
   });
   const [error, setError] = useState("");
   const [avatarFile, setAvatarFile] = useState(null);
@@ -44,8 +46,22 @@ const RegisterPage = () => {
     setError("");
     setIsLoading(true);
 
-    if (!form.email || !form.password || !form.companyName || !form.gstNumber) {
-      toast.error("Fill required fields");
+    // Validate Core Fields
+    if (!form.email || !form.password || !form.companyName) {
+      toast.error("Fill required core fields");
+      setIsLoading(false);
+      return;
+    }
+
+    // Validate specific fields based on mode
+    if (isSeller && !form.gstNumber) {
+      toast.error("GST Number is required for Sellers");
+      setIsLoading(false);
+      return;
+    }
+
+    if (!isSeller && (!form.lenderType || !form.lenderLicense || !form.gstNumber)) {
+      toast.error("Type, License, and GSTIN are required for Lenders");
       setIsLoading(false);
       return;
     }
@@ -65,7 +81,8 @@ const RegisterPage = () => {
 
   const handleVerifyOtp = async (code) => {
     try {
-      const payload = {
+      // Send different payloads based on mode
+      const payload = isSeller ? {
         email: form.email,
         password: form.password,
         companyName: form.companyName,
@@ -74,6 +91,13 @@ const RegisterPage = () => {
         industry: form.industry,
         annualTurnover: Number(form.annualTurnover) || 0,
         beneficiaryName: form.beneficiaryName,
+      } : {
+        email: form.email,
+        password: form.password,
+        companyName: form.companyName,
+        gstNumber: form.gstNumber,
+        lenderType: form.lenderType,
+        lenderLicense: form.lenderLicense,
       };
 
       const formData = new FormData();
@@ -203,7 +227,8 @@ const RegisterPage = () => {
                     <ShieldCheck className="text-white w-5 h-5 relative z-10" />
                   </div>
                 </div>
-                <div className="flex flex-col leading-tight">
+
+                <div>
                   <h2 className="text-lg sm:text-xl font-semibold text-slate-900">
                     Create your PayNidhi account
                   </h2>
@@ -242,7 +267,7 @@ const RegisterPage = () => {
 
             {/* Avatar row - Enhanced with #47C4B7 */}
             <div className="flex flex-wrap items-center gap-4 mb-4 p-4 bg-gradient-to-r from-slate-50/80 to-slate-100/80 rounded-xl border border-[#47C4B7]/20 hover:border-[#47C4B7]/40 hover:shadow-md transition-all duration-200">
-              <div className={`h-12 w-12 rounded-full border-2 border-slate-300 overflow-hidden shadow-sm transition-all hover:scale-110 hover:border-[#47C4B7]/60 ${avatarPreview ? 'border-[#47C4B7]/50 shadow-[#47C4B7]/10' : ''}`}>
+              <div className={`h-12 w-12 rounded-full border-2 border-slate-300 bg-white flex items-center justify-center overflow-hidden shadow-sm transition-all hover:scale-110 hover:border-[#47C4B7]/60 cursor-pointer ${avatarPreview ? 'border-[#47C4B7]/50 shadow-[#47C4B7]/10' : ''}`} onClick={() => document.getElementById('avatar-upload').click()}>
                 {avatarPreview ? (
                   <img
                     src={avatarPreview}
@@ -250,20 +275,19 @@ const RegisterPage = () => {
                     className="h-full w-full object-cover hover:scale-110 transition-transform duration-200"
                   />
                 ) : (
-                  <div className="h-full w-full flex items-center justify-center text-[10px] text-slate-400 bg-gradient-to-br from-[#47C4B7]/10 to-emerald-500/10">
-                    Logo
-                  </div>
+                  <Camera className="text-slate-400 w-5 h-5" />
                 )}
               </div>
               <div className="flex flex-col gap-1 flex-1 min-w-0">
-                <label className="text-[11px] font-semibold text-slate-700">
+                <label className="text-[11px] font-semibold text-slate-700 cursor-pointer" htmlFor="avatar-upload">
                   Business logo (optional)
                 </label>
                 <input
+                  id="avatar-upload"
                   type="file"
                   accept="image/*"
                   onChange={handleAvatarChange}
-                  className="text-[11px] text-slate-500 file:mr-3 file:px-3 file:py-1.5 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-[#47C4B7]/90 file:text-white hover:file:bg-[#47C4B7] transition-colors"
+                  className="text-[11px] text-slate-500 file:mr-3 file:px-3 file:py-1.5 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-[#47C4B7]/90 file:text-white hover:file:bg-[#47C4B7] transition-colors hidden"
                 />
                 <p className="text-[10px] text-slate-400">
                   PNG / JPG, up to 2MB. You can update this later.
@@ -277,8 +301,9 @@ const RegisterPage = () => {
               </div>
             )}
 
-            {/* Simplified Form - Added #47C4B7 focus states */}
+            {/* Form - Added #47C4B7 focus states */}
             <form onSubmit={handleSubmit} className="space-y-4">
+              
               {/* Company name + Email */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1.5">
@@ -327,93 +352,150 @@ const RegisterPage = () => {
                 />
               </div>
 
-              {/* GST Number + Beneficiary Name */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <label className="block text-[11px] font-semibold text-slate-700">
-                    GST Number
-                  </label>
-                  <input
-                    type="text"
-                    name="gstNumber"
-                    required
-                    value={form.gstNumber}
-                    onChange={handleChange}
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#47C4B7]/70 hover:border-slate-300 transition-all duration-200 uppercase tracking-wider"
-                    placeholder="27ABCDE1234F1Z5"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="block text-[11px] font-semibold text-slate-700">
-                    Beneficiary name
-                  </label>
-                  <input
-                    type="text"
-                    name="beneficiaryName"
-                    required
-                    value={form.beneficiaryName}
-                    onChange={handleChange}
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#47C4B7]/70 hover:border-slate-300 transition-all duration-200"
-                    placeholder="Account holder name"
-                  />
-                </div>
-              </div>
+              {/* DYNAMIC FIELDS: Seller vs Lender */}
+              {isSeller ? (
+                <>
+                  {/* SELLER: GST Number + Beneficiary Name */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <label className="block text-[11px] font-semibold text-slate-700">
+                        GST Number
+                      </label>
+                      <input
+                        type="text"
+                        name="gstNumber"
+                        required
+                        value={form.gstNumber}
+                        onChange={handleChange}
+                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#47C4B7]/70 hover:border-slate-300 transition-all duration-200 uppercase tracking-wider"
+                        placeholder="27ABCDE1234F1Z5"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="block text-[11px] font-semibold text-slate-700">
+                        Beneficiary name
+                      </label>
+                      <input
+                        type="text"
+                        name="beneficiaryName"
+                        required
+                        value={form.beneficiaryName}
+                        onChange={handleChange}
+                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#47C4B7]/70 hover:border-slate-300 transition-all duration-200"
+                        placeholder="Account holder name"
+                      />
+                    </div>
+                  </div>
 
-              {/* Business type + Industry */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <label className="block text-[11px] font-semibold text-slate-700">
-                    Business type
-                  </label>
-                  <select
-                    name="businessType"
-                    required
-                    value={form.businessType}
-                    onChange={handleChange}
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#47C4B7]/70 hover:border-slate-300 transition-all duration-200"
-                  >
-                    <option value="">Select</option>
-                    <option value="Services">Services</option>
-                    <option value="Trading">Trading</option>
-                    <option value="Manufacturing">Manufacturing</option>
-                  </select>
-                </div>
-                <div className="space-y-1.5">
-                  <label className="block text-[11px] font-semibold text-slate-700">
-                    Industry
-                  </label>
-                  <select
-                    name="industry"
-                    required
-                    value={form.industry}
-                    onChange={handleChange}
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#47C4B7]/70 hover:border-slate-300 transition-all duration-200"
-                  >
-                    <option value="">Select</option>
-                    <option value="IT">IT</option>
-                    <option value="Finance">Finance</option>
-                    <option value="Retail">Retail</option>
-                  </select>
-                </div>
-              </div>
+                  {/* SELLER: Business type + Industry */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <label className="block text-[11px] font-semibold text-slate-700">
+                        Business type
+                      </label>
+                      <select
+                        name="businessType"
+                        required
+                        value={form.businessType}
+                        onChange={handleChange}
+                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#47C4B7]/70 hover:border-slate-300 transition-all duration-200"
+                      >
+                        <option value="">Select</option>
+                        <option value="Services">Services</option>
+                        <option value="Trading">Trading</option>
+                        <option value="Manufacturing">Manufacturing</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="block text-[11px] font-semibold text-slate-700">
+                        Industry
+                      </label>
+                      <select
+                        name="industry"
+                        required
+                        value={form.industry}
+                        onChange={handleChange}
+                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#47C4B7]/70 hover:border-slate-300 transition-all duration-200"
+                      >
+                        <option value="">Select</option>
+                        <option value="IT">IT</option>
+                        <option value="Finance">Finance</option>
+                        <option value="Retail">Retail</option>
+                      </select>
+                    </div>
+                  </div>
 
-              {/* Annual turnover */}
-              <div className="space-y-1.5 relative">
-                <label className="block text-[11px] font-semibold text-slate-700">
-                  Annual turnover (₹)
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#47C4B7] font-bold text-sm">₹</span>
-                  <input
-                    type="number"
-                    name="annualTurnover"
-                    value={form.annualTurnover}
-                    onChange={handleChange}
-                    className="w-full pl-8 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#47C4B7]/70 hover:border-slate-300 transition-all duration-200"
-                    placeholder="0"
-                  />
-                </div>
-              </div>
+                  {/* SELLER: Annual turnover */}
+                  <div className="space-y-1.5 relative">
+                    <label className="block text-[11px] font-semibold text-slate-700">
+                      Annual turnover (₹)
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#47C4B7] font-bold text-sm">₹</span>
+                      <input
+                        type="number"
+                        name="annualTurnover"
+                        value={form.annualTurnover}
+                        onChange={handleChange}
+                        className="w-full pl-8 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#47C4B7]/70 hover:border-slate-300 transition-all duration-200"
+                        placeholder="0"
+                      />
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* LENDER: Type + License */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <label className="block text-[11px] font-semibold text-slate-700">
+                        Lender Type
+                      </label>
+                      <select
+                        name="lenderType"
+                        required
+                        value={form.lenderType}
+                        onChange={handleChange}
+                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#47C4B7]/70 hover:border-slate-300 transition-all duration-200"
+                      >
+                        <option value="">Select</option>
+                        <option value="Bank">Bank</option>
+                        <option value="NBFC">NBFC</option>
+                        <option value="Institutional">Institutional</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="block text-[11px] font-semibold text-slate-700">
+                        RBI License No.
+                      </label>
+                      <input
+                        type="text"
+                        name="lenderLicense"
+                        required
+                        value={form.lenderLicense}
+                        onChange={handleChange}
+                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#47C4B7]/70 hover:border-slate-300 transition-all duration-200 uppercase"
+                        placeholder="e.g. RBI-12345"
+                      />
+                    </div>
+                  </div>
+                  {/* LENDER: GST Number */}
+                  <div className="space-y-1.5">
+                    <label className="block text-[11px] font-semibold text-slate-700">
+                      Corporate GST Number
+                    </label>
+                    <input
+                      type="text"
+                      name="gstNumber"
+                      required
+                      value={form.gstNumber}
+                      onChange={handleChange}
+                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#47C4B7]/70 hover:border-slate-300 transition-all duration-200 uppercase tracking-wider"
+                      placeholder="27ABCDE1234F1Z5"
+                    />
+                  </div>
+                </>
+              )}
 
               <button
                 type="submit"
@@ -429,18 +511,19 @@ const RegisterPage = () => {
                   "Continue & verify email"
                 )}
               </button>
+              
               {/* Mobile login text */}
-            <p className="sm:hidden text-[11px] text-slate-500 mb-3">
-              Already registered?{" "}
-              <button
-                type="button"
-                onClick={() => navigate("/login")}
-                className="text-[#47C4B7] font-semibold hover:text-[#47C4B7]/80 transition-colors"
-              >
-                Log in
-              </button>
-            </p>
-              <div className="hidden sm:block text-[11px] text-slate-500">
+              <p className="sm:hidden text-[11px] text-slate-500 mb-3 text-center">
+                Already registered?{" "}
+                <button
+                  type="button"
+                  onClick={() => navigate("/login")}
+                  className="text-[#47C4B7] font-semibold hover:text-[#47C4B7]/80 transition-colors"
+                >
+                  Log in
+                </button>
+              </p>
+              <div className="hidden sm:block text-[11px] text-slate-500 text-center">
                 Already have an account?{" "}
                 <button
                   type="button"
@@ -455,7 +538,6 @@ const RegisterPage = () => {
         </section>
       </div>
 
-      {/* ✅ FIXED: Replaced style jsx with dangerouslySetInnerHTML */}
       <style dangerouslySetInnerHTML={{ __html: `
         @keyframes bounce-slow {
           0%, 100% { transform: translateY(0) scale(1); }

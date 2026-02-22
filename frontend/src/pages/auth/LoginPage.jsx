@@ -329,7 +329,6 @@ const LoginPage = () => {
         </section>
       </div>
 
-      {/* ✅ FIXED: Replaced style jsx with dangerouslySetInnerHTML */}
       <style dangerouslySetInnerHTML={{ __html: `
         @keyframes bounce-slow {
           0%, 100% { transform: translateY(0) scale(1); }
