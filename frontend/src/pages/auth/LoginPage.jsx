@@ -1,4 +1,3 @@
-// frontend/src/pages/auth/LoginPage.jsx
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -330,7 +329,8 @@ const LoginPage = () => {
         </section>
       </div>
 
-      <style jsx>{`
+      {/* ✅ FIXED: Replaced style jsx with dangerouslySetInnerHTML */}
+      <style dangerouslySetInnerHTML={{ __html: `
         @keyframes bounce-slow {
           0%, 100% { transform: translateY(0) scale(1); }
           50% { transform: translateY(-10px) scale(1.02); }
@@ -338,7 +338,7 @@ const LoginPage = () => {
         .animate-bounce-slow {
           animation: bounce-slow 4s ease-in-out infinite;
         }
-      `}</style>
+      `}} />
     </div>
   );
 };
