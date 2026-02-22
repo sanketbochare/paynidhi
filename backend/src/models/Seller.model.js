@@ -3,10 +3,11 @@ import bcrypt from "bcryptjs";
 import { encryptField, decryptField, hashField } from "../utils/encryption.utils.js";
 
 const bankAccountSchema = new mongoose.Schema({
-      accountNumber: { type: String, required: true, default: null },
-      ifscCode: { type: String, required: true, uppercase: true, default: null },
-      beneficiaryName: { type: String, required: true, default: null },
-      bankName: { type: String, required: true },
+      accountNumber: { type: String, required: true, sparse:true, unique: true},
+      accountNumberHash: {type: String, required: false, sparse: true, unique: true},
+      ifscCode: { type: String, required: true, sparse:true, uppercase: true},
+      beneficiaryName: { type: String, sparse:true, required: true },
+      bankName: { type: String, sparse:true, required: true },
       // verified: { type: Boolean, default: false }
 })
 
@@ -43,7 +44,7 @@ const sellerSchema = new mongoose.Schema(
 
     // 3. SENSITIVE KYC DATA (Encrypted + Blind Index)
     panNumber: { type: String, unique: true, sparse: true, required: false },
-    gstNumber: { type: String, unique: true, sparse: true, required: true },
+    gstNumber: { type: String, unique: true, sparse: true, required: true, index: true },
     panHash: { type: String, required: false, unique: true, sparse: true, index: true },
     gstHash: { type: String, required: true, unique: true, sparse: true, index: true },
     aadhaarNumber: { type: Number, unique: true, sparse: true, required: false, index: true},
@@ -89,8 +90,8 @@ sellerSchema.pre("save", async function () {
 
   // GST (required)
   if (seller.isModified("gstNumber") && seller.gstNumber) {
-    seller.gstNumber = encryptField(seller.gstNumber);
     seller.gstHash = hashField(seller.gstNumber);
+    seller.gstNumber = encryptField(seller.gstNumber);
   }
 
   // PAN (optional - KYC)
@@ -145,11 +146,13 @@ sellerSchema.pre("save", async function () {
             // Only encrypt if it's not already encrypted (contains ":")
             return {
                 ...acc,
+                accountNumberHash: acc.accountNumber.includes(":") ? accountNumberHash : hashField(acc.accountNumber),
                 accountNumber: acc.accountNumber.includes(":") ? acc.accountNumber : encryptField(acc.accountNumber),
                 ifscCode: acc.ifscCode ? acc.ifscCode : encryptField(acc.ifscCode)
             };
         });
     }
+
 
 });
 export default mongoose.model("Seller", sellerSchema);

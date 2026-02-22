@@ -2,6 +2,7 @@ import Invoice from "../models/Invoice.model.js";
 import { extractInvoiceData } from "../services/gemini.service.js"; // Ensure this file exists
 import { verifyInvoiceRules } from "../services/verification.service.js"; // Ensure this file exists
 import fs from "fs";
+import MockGovtInvoice from "../models/MockGovtInvoice.model.js"
 
 // ==========================================
 // 1. UPLOAD & SCAN INVOICE
@@ -15,60 +16,76 @@ export const uploadInvoice = async (req, res) => {
     console.log(`👤 Processing Upload for: ${req.user.companyName}`);
 
     // A. AI Extraction (Gemini)
-    // Note: Ensure extractInvoiceData returns the object structure you expect
     const extractedData = await extractInvoiceData(req.file.path);
 
-    // B. Verification Logic
-    const verificationResult = await verifyInvoiceRules(extractedData);
-
-    if (!verificationResult.success) {
-      // Cleanup file if validation fails
+    // ==========================================
+    // 🛡️ STAGE 1: THE INTERNAL PLATFORM SHIELD (Govt IRN Verification)
+    // ==========================================
+    
+    // Shield 1: Did Gemini find an IRN?
+    if (!extractedData.irn) {
       if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
-      
-      return res.status(400).json({
-        success: false,
-        data: extractedData,
-        error: verificationResult.error
-      });
+      return res.status(400).json({ error: "Fraud Alert: No valid 64-character Govt IRN found on this document." });
     }
+
+    // Shield 2: Is it a real IRN registered with the government?
+    const officialRecord = await MockGovtInvoice.findOne({ irn: extractedData.irn });
+    if (!officialRecord) {
+      if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+      return res.status(400).json({ error: "Fraud Alert: This IRN is not registered with the official GST portal." });
+    }
+
+    // Shield 3: Did they tamper with the PDF? (Check the money)
+    if (Number(officialRecord.totalAmount) !== Number(extractedData.total_amount)) {
+      if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+      return res.status(400).json({ error: `Fraud Alert: Document tampering detected. PDF shows ₹${extractedData.total_amount}, but official GST record is ₹${officialRecord.totalAmount}.` });
+    }
+
+    // Shield 4: Double Financing Check (Has this exact IRN been uploaded before?)
+    const alreadyFinanced = await Invoice.findOne({ irn: extractedData.irn });
+    if (alreadyFinanced) {
+      if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+      return res.status(400).json({ error: "Double Financing Alert: This exact IRN has already been uploaded to PayNidhi." });
+    }
+    // ==========================================
 
     // C. Save to MongoDB
     const newInvoice = await Invoice.create({
       seller: req.user._id,
       
+      irn: extractedData.irn, 
       invoiceNumber: extractedData.invoice_number,
       poNumber: extractedData.po_number,
       totalAmount: extractedData.total_amount,
       
-      // Handle Date Parsing safely
       invoiceDate: new Date(extractedData.invoice_date),
       dueDate: new Date(extractedData.due_date),
       
       sellerGst: extractedData.seller_gstin,
       buyerGst: extractedData.buyer_gstin,
       buyerName: extractedData.buyer_name,
+      buyerEmail: extractedData.buyer_email,
       
-      status: "Verified", // Ready for bidding
+      status: "Pending_Buyer_Approval", // 👈 This proves the new code is running
       fileUrl: req.file.path,
       description: `Invoice for ${extractedData.items_summary || "services"}`
     });
 
-    console.log("✅ Saved to MongoDB:", newInvoice._id);
+    console.log("✅ Verified against Govt records & Saved to MongoDB:", newInvoice._id);
 
     res.status(201).json({
       success: true,
-      message: "Invoice Verified & Saved Successfully!",
+      message: "Invoice mathematically verified & Saved Successfully!",
       data: newInvoice
     });
 
   } catch (error) {
     console.error("Handler Error:", error);
-    // Cleanup file on error
     if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
 
-    // Handle Duplicate Invoice Number
+    // MongoDB Duplicate Key Error
     if (error.code === 11000) {
-      return res.status(400).json({ error: "Duplicate Invoice! This invoice number already exists." });
+      return res.status(400).json({ error: "Database Error: Duplicate Unique Key constraint violated (Check MongoDB Indexes)." });
     }
     
     res.status(500).json({ error: "Failed to process invoice" });
