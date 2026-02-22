@@ -1,130 +1,109 @@
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
-import { encryptField, decryptField } from "../utils/encryption.utils.js";
+import { encryptField, decryptField, hashField } from "../utils/encryption.utils.js";
+
+// Reusing your robust bank schema
+const bankAccountSchema = new mongoose.Schema({
+  accountNumber: { type: String, required: true, sparse: true, unique: true },
+  accountNumberHash: { type: String, required: false, sparse: true, unique: true },
+  ifscCode: { type: String, required: true, sparse: true, uppercase: true },
+  beneficiaryName: { type: String, sparse: true, required: true },
+  bankName: { type: String, sparse: true, required: true },
+});
 
 const lenderSchema = new mongoose.Schema(
   {
-    // ==========================================
-    // 1. Core Identity
-    // ==========================================
+    // 1. CORE IDENTITY
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     password: { type: String, required: true, minlength: 8 },
 
-    // ==========================================
-    // 2. Lender Profile
-    // ==========================================
-    companyName: { type: String, trim: true },
-    
+    // 2. LENDER PROFILE
+    companyName: { type: String, trim: true, required: true },
     lenderType: {
       type: String,
-      // ✅ FIX: Added "Bank", "NBFC", "Institutional" to match your request
-      enum: ["Bank", "NBFC", "Individual", "Institutional", "BANK", "INDIVIDUAL"], 
+      enum: ["Bank", "NBFC", "Individual", "Institutional"], 
       required: true
     },
-    
-    // Encrypted License
+    // RBI License (Plain string for searching, encrypted for storage if needed)
     lenderLicense: { type: String, trim: true }, 
 
-    // ==========================================
-    // 3. Bank Details (Encrypted)
-    // ==========================================
-    bankAccount: {
-      accountNumber: { type: String }, // Encrypted
-      ifsc: { type: String, uppercase: true }, // Encrypted
-      beneficiaryName: String,
-      bankName: String,
-      mandateId: String // 👈 Added for Auto-Debit Logic
-    },
+    // 3. SENSITIVE KYC DATA (Aligned with Seller!)
+    panNumber: { type: String, unique: true, sparse: true, required: false },
+    gstNumber: { type: String, unique: true, sparse: true, required: false, index: true },
+    panHash: { type: String, required: false, unique: true, sparse: true, index: true },
+    gstHash: { type: String, required: false, unique: true, sparse: true, index: true },
+    aadhaarNumber: { type: Number, unique: true, sparse: true, required: false, index: true},
 
-    // ==========================================
-    // 4. Treasury Management (CRITICAL FOR SETTLEMENT)
-    // ==========================================
-    // 🏦 The "Credit Line" Model
-    totalCreditLimit: { 
-      type: Number, 
-      default: 0 
-    }, // Max amount they agreed to lend
+    // 4. BANK DETAILS
+    bankAccount: { type: [bankAccountSchema] },
 
-    utilizedLimit: { 
-      type: Number, 
-      default: 0 
-    }, // Amount currently locked in Active Loans
+    // 5. TREASURY MANAGEMENT (Wallets)
+    totalCreditLimit: { type: Number, default: 0 }, // Total allowed to invest
+    utilizedLimit: { type: Number, default: 0 },    // Locked in active invoices
+    walletBalance: { type: Number, default: 0 },    // Liquid cash ready to deploy
 
-    escrowBalance: { 
-      type: Number, 
-      default: 0 
-    }, // Money pulled from bank, waiting to go to Seller
-
-    isMandateActive: { type: Boolean, default: false },
-
-    // ==========================================
-    // 5. Investment Settings
-    // ==========================================
-    maxInvestment: { type: Number, default: 0 }, // Used to set initial Credit Limit
-    avgDiscountRate: { type: Number, default: 0 }, 
-
-    // ==========================================
-    // 6. Address
-    // ==========================================
-    address: {
-      city: String,
-      state: String,
-      pincode: { type: String, match: /^\d{6}$/ },
-    },
-    
+    // 6. SYSTEM STATUS
     isOnboarded: { type: Boolean, default: false },
+    kycStatus: { 
+      type: String, 
+      enum: ["pending", "partial", "verified", "rejected"], 
+      default: "partial" 
+    },
+    avatarUrl: { type: String, default: "" },
   },
   { timestamps: true }
 );
 
 // ==========================================
-// 🔒 SECURITY MIDDLEWARE
+// 🔒 SECURITY MIDDLEWARE (Exact match to Seller)
 // ==========================================
-
-// Pre-save: Encrypt & Hash
 lenderSchema.pre("save", async function () {
   const lender = this;
 
-  // 1. Hash Password
+  // 1. Password
   if (lender.isModified("password")) {
     const salt = await bcrypt.genSalt(10);
     lender.password = await bcrypt.hash(lender.password, salt);
   }
 
-  // 2. Sync 'maxInvestment' to 'totalCreditLimit' on first creation
-  if (lender.isNew && lender.maxInvestment > 0) {
-    lender.totalCreditLimit = lender.maxInvestment;
-    lender.isMandateActive = true;
+  // 2. GST (If provided at registration)
+  if (lender.isModified("gstNumber") && lender.gstNumber) {
+    lender.gstHash = hashField(lender.gstNumber);
+    lender.gstNumber = encryptField(lender.gstNumber);
   }
 
-  // 3. Encrypt Sensitive Data
-  if (lender.isModified("lenderLicense")) {
-    lender.lenderLicense = encryptField(lender.lenderLicense);
+  // 3. PAN 
+  if (lender.isModified("panNumber") && lender.panNumber) {
+    lender.panNumber = encryptField(lender.panNumber);
+    lender.panHash = hashField(lender.panNumber);
   }
-  if (lender.isModified("bankAccount.accountNumber")) {
-    lender.bankAccount.accountNumber = encryptField(lender.bankAccount.accountNumber);
-  }
-  if (lender.isModified("bankAccount.ifsc")) {
-    lender.bankAccount.ifsc = encryptField(lender.bankAccount.ifsc);
+
+  // 4. Bank Fields
+  if (lender.isModified("bankAccount")) {
+    lender.bankAccount = lender.bankAccount.map(acc => {
+      return {
+        ...acc,
+        accountNumberHash: acc.accountNumber.includes(":") ? acc.accountNumberHash : hashField(acc.accountNumber),
+        accountNumber: acc.accountNumber.includes(":") ? acc.accountNumber : encryptField(acc.accountNumber),
+        ifscCode: acc.ifscCode?.includes(":") ? acc.ifscCode : encryptField(acc.ifscCode)
+      };
+    });
   }
 });
 
-// Post-init: Decrypt Data
 lenderSchema.post("init", function (doc) {
-  if (doc.lenderLicense && doc.lenderLicense.includes(":")) {
-    doc.lenderLicense = decryptField(doc.lenderLicense);
-  }
-  if (doc.bankAccount?.accountNumber?.includes(":")) {
-    doc.bankAccount.accountNumber = decryptField(doc.bankAccount.accountNumber);
-  }
-  if (doc.bankAccount?.ifsc?.includes(":")) {
-    doc.bankAccount.ifsc = decryptField(doc.bankAccount.ifsc);
+  if (doc.gstNumber && doc.gstNumber.includes(":")) doc.gstNumber = decryptField(doc.gstNumber);
+  if (doc.panNumber && doc.panNumber.includes(":")) doc.panNumber = decryptField(doc.panNumber);
+  if (doc.bankAccount) {
+    doc.bankAccount.forEach(acc => {
+      if (acc.accountNumber?.includes(":")) acc.accountNumber = decryptField(acc.accountNumber);
+      if (acc.ifscCode?.includes(":")) acc.ifscCode = decryptField(acc.ifscCode);
+    });
   }
 });
 
-// Compare Password
-lenderSchema.methods.comparePassword = async function (candidatePassword) {
-  return bcrypt.compare(candidatePassword, this.password);
+lenderSchema.methods.comparePassword = async function (enteredPassword) {
+  return await bcrypt.compare(enteredPassword, this.password);
 };
 
 export default mongoose.model("Lender", lenderSchema);
