@@ -9,28 +9,21 @@ import { ShieldCheck } from "lucide-react";
 
 const RegisterPage = () => {
   const [mode, setMode] = useState("seller");
-  const [step, setStep] = useState(1); // 1 = form, 2 = OTP
+  const [step, setStep] = useState(1);
   const [form, setForm] = useState({
-    name: "",
     email: "",
     password: "",
     companyName: "",
     gstNumber: "",
-    panNumber: "",
-    beneficiaryName: "",
-    ifsc: "",
-    accountNumber: "",
     businessType: "",
     industry: "",
     annualTurnover: "",
-    lenderType: "",
-    lenderLicense: "",
-    maxInvestment: "",
-    address: "",
+    beneficiaryName: "",
   });
   const [error, setError] = useState("");
   const [avatarFile, setAvatarFile] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -47,68 +40,54 @@ const RegisterPage = () => {
     setAvatarPreview(url);
   };
 
-  // Step 1: submit form -> send OTP
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    setIsLoading(true);
 
-    if (!form.email || !form.password || !form.companyName) {
+    if (!form.email || !form.password || !form.companyName || !form.gstNumber) {
       toast.error("Fill required fields");
+      setIsLoading(false);
       return;
     }
 
     try {
       await requestOtp({ email: form.email, purpose: "register" });
-      toast.success("Verification code sent to your email");
+      toast.success("✅ Verification code sent to your email");
       setStep(2);
     } catch (err) {
       const msg = err?.error || "Failed to send OTP";
       setError(msg);
       toast.error(msg);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  // Step 2: verify OTP -> create account
   const handleVerifyOtp = async (code) => {
     try {
-      const payload = isSeller
-        ? {
-            email: form.email,
-            password: form.password,
-            companyName: form.companyName,
-            gstNumber: form.gstNumber,
-            panNumber: form.panNumber,
-            bankAccount: {
-              beneficiaryName: form.beneficiaryName,
-              ifsc: form.ifsc,
-              accountNumber: form.accountNumber,
-            },
-            businessType: form.businessType,
-            industry: form.industry,
-            annualTurnover: Number(form.annualTurnover) || 0,
-          }
-        : {
-            email: form.email,
-            password: form.password,
-            companyName: form.companyName,
-            lenderType: form.lenderType,
-            lenderLicense: form.lenderLicense,
-            bankAccount: {
-              beneficiaryName: form.beneficiaryName,
-              ifsc: form.ifsc,
-              accountNumber: form.accountNumber,
-            },
-            maxInvestment: Number(form.maxInvestment) || 0,
-            address: form.address,
-          };
-
-      const data = await verifyOtp({
+      const payload = {
         email: form.email,
-        code,
-        purpose: "register",
-        mode,
-        payload,
-      });
+        password: form.password,
+        companyName: form.companyName,
+        gstNumber: form.gstNumber,
+        businessType: form.businessType,
+        industry: form.industry,
+        annualTurnover: Number(form.annualTurnover) || 0,
+        beneficiaryName: form.beneficiaryName,
+      };
+
+      const formData = new FormData();
+      formData.append("email", form.email);
+      formData.append("code", code);
+      formData.append("purpose", "register");
+      formData.append("mode", mode);
+      formData.append("payload", JSON.stringify(payload));
+      if (avatarFile) {
+        formData.append("avatar", avatarFile);
+      }
+
+      const data = await verifyOtp(formData);
 
       login(data);
       toast.success("Email verified and account created");
@@ -129,10 +108,9 @@ const RegisterPage = () => {
     await requestOtp({ email: form.email, purpose: "register" });
   };
 
-  // OTP view – same background, centered card
   if (step === 2) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4 py-6 bg-gradient-to-br from-slate-50 via-slate-100 to-slate-200">
+      <div className="min-h-screen flex items-center justify-center px-4 py-6 bg-gradient-to-br from-slate-50 via-slate-100 to-slate-200 relative overflow-hidden">
         <OtpVerifyCard
           email={form.email}
           purpose="register"
@@ -144,21 +122,27 @@ const RegisterPage = () => {
     );
   }
 
-  // Form view – same vibe as login: hero left, form right
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-6 sm:py-10 bg-gradient-to-br from-slate-50 via-slate-100 to-slate-200">
-      <div className="w-full max-w-5xl grid grid-cols-1 md:grid-cols-[1.1fr_1.2fr] gap-6 lg:gap-10 items-stretch">
-        {/* Left: mini hero, matches login tone */}
-        <section className="hidden md:flex flex-col gap-5 border border-slate-200 rounded-2xl shadow-md px-6 py-6">
-          <div className="inline-flex items-center gap-3">
+    <div className="min-h-screen flex items-center justify-center px-4 py-6 sm:py-10 bg-gradient-to-br from-slate-50 via-slate-100 to-slate-200 relative overflow-hidden">
+      {/* Animated Background - #47C4B7 color */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-[#47C4B7]/20 rounded-full blur-3xl animate-bounce-slow" />
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-[#47C4B7]/10 rounded-full blur-3xl animate-pulse" />
+      </div>
+
+      <div className="w-full max-w-5xl grid grid-cols-1 md:grid-cols-[1.1fr_1.2fr] gap-6 lg:gap-10 items-stretch relative z-10">
+        
+        {/* Left: mini hero - Added #47C4B7 accents */}
+        <section className="hidden md:flex flex-col gap-5 border border-slate-200 rounded-2xl shadow-md px-6 py-6 hover:shadow-xl transition-all duration-300 hover:border-[#47C4B7]/30 group">
+          <div className="inline-flex items-center gap-3 group/logo">
             <div className="group relative">
-              <div className="relative bg-gradient-to-br from-indigo-600 to-violet-700 p-2.5 rounded-2xl shadow-[0_10px_30px_rgba(79,70,229,0.45)] group-hover:scale-110 group-hover:-translate-y-0.5 transition-transform duration-300">
-                <div className="absolute inset-0 rounded-2xl bg-white/20 blur-sm opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="relative bg-gradient-to-br from-[#47C4B7] to-emerald-500 p-2.5 rounded-2xl shadow-[0_10px_30px_rgba(71,196,183,0.45)] group-hover/logo:scale-110 group-hover/logo:-translate-y-0.5 transition-transform duration-300">
+                <div className="absolute inset-0 rounded-2xl bg-white/20 blur-sm opacity-0 group-hover/logo:opacity-100 transition-opacity" />
                 <ShieldCheck className="text-white w-5 h-5 relative z-10" />
               </div>
             </div>
             <div className="flex flex-col leading-tight">
-              <span className="text-sm font-semibold text-slate-900">
+              <span className="text-sm font-semibold bg-gradient-to-r from-slate-900 to-[#47C4B7] bg-clip-text text-transparent">
                 PayNidhi
               </span>
               <span className="text-[11px] text-slate-500">
@@ -167,32 +151,32 @@ const RegisterPage = () => {
             </div>
           </div>
 
-          <h1 className="text-2xl font-semibold text-slate-900 leading-snug">
+          <h1 className="text-2xl font-semibold text-slate-900 leading-snug group-hover:scale-[1.02] transition-transform duration-300">
             Open your{" "}
-            <span className="text-indigo-600">seller</span> or{" "}
+            <span className="text-[#47C4B7] font-bold">seller</span> or{" "}
             <span className="text-emerald-500">lender</span> account in a few steps.
           </h1>
 
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-slate-500 group-hover:text-slate-600 transition-colors">
             Create a workspace to track payouts, credit utilization, and invoice
             settlements in one secure console designed for finance teams.
           </p>
 
           <div className="grid grid-cols-2 gap-3 text-[11px]">
-            <div className="rounded-xl bg-slate-50 border border-slate-200 px-3 py-3 shadow-sm">
+            <div className="rounded-xl bg-gradient-to-br from-[#47C4B7]/10 to-emerald-500/10 border border-[#47C4B7]/30 px-3 py-3 shadow-sm hover:scale-105 transition-all duration-200 group/card">
               <div className="text-slate-500 mb-1">Disbursed this month</div>
-              <div className="text-lg font-semibold text-slate-900">₹3.8Cr</div>
+              <div className="text-lg font-semibold text-[#47C4B7]">₹3.8Cr</div>
               <div className="text-[10px] text-emerald-500 mt-1">
                 Across verified partners
               </div>
             </div>
-            <div className="rounded-xl bg-slate-50 border border-slate-200 px-3 py-3 shadow-sm flex flex-col justify-between">
+            <div className="rounded-xl bg-slate-50 border border-slate-200 px-3 py-3 shadow-sm flex flex-col justify-between hover:scale-105 transition-all duration-200 group/card">
               <div className="flex items-center justify-between text-[11px] text-slate-500">
                 <span>On‑time settlements</span>
                 <span>96%</span>
               </div>
               <div className="mt-1 h-1.5 w-full rounded-full bg-slate-100 overflow-hidden">
-                <div className="h-full w-[96%] rounded-full bg-gradient-to-r from-indigo-500 to-emerald-400" />
+                <div className="h-full w-[96%] rounded-full bg-gradient-to-r from-[#47C4B7] to-emerald-400" />
               </div>
               <div className="text-[10px] text-slate-400 mt-1">
                 Under 48 hours SLA
@@ -201,60 +185,48 @@ const RegisterPage = () => {
           </div>
 
           <p className="text-[11px] text-slate-400">
-            By creating an account, you agree to PayNidhi&apos;s{" "}
-            <span className="text-indigo-500">Terms</span> and{" "}
-            <span className="text-indigo-500">Privacy Policy</span>.
+            By creating an account, you agree to PayNidhi's{" "}
+            <span className="text-[#47C4B7] hover:text-[#47C4B7]/80 font-semibold transition-colors cursor-pointer">Terms</span> and{" "}
+            <span className="text-[#47C4B7] hover:text-[#47C4B7]/80 font-semibold transition-colors cursor-pointer">Privacy Policy</span>.
           </p>
         </section>
 
-        {/* Right: wide, responsive form – no internal scroll */}
+        {/* Right: form - Added #47C4B7 accents */}
         <section className="w-full">
-          <div className="w-full bg-white/95 border border-slate-200 rounded-2xl shadow-xl backdrop-blur px-5 py-6 sm:px-7 sm:py-7">
+          <div className="w-full bg-white/95 border border-slate-200 rounded-2xl shadow-xl backdrop-blur hover:shadow-2xl transition-all duration-300 hover:border-[#47C4B7]/30 px-5 py-6 sm:px-7 sm:py-7">
+            
             {/* Top row: title + login link */}
             <div className="flex items-start justify-between gap-3 mb-4">
-  <div className="flex items-start gap-3">
-    {/* Logo */}
-    <div className="group relative mt-[2px]">
-      <div className="relative bg-gradient-to-br from-indigo-600 to-violet-700 p-2.5 rounded-2xl shadow-[0_10px_30px_rgba(79,70,229,0.45)] group-hover:scale-110 group-hover:-translate-y-0.5 transition-transform duration-300">
-        <div className="absolute inset-0 rounded-2xl bg-white/20 blur-sm opacity-0 group-hover:opacity-100 transition-opacity" />
-        <ShieldCheck className="text-white w-5 h-5 relative z-10" />
-      </div>
-    </div>
+              <div className="flex items-start gap-3 flex-1">
+                <div className="group relative mt-[2px]">
+                  <div className="relative bg-gradient-to-br from-[#47C4B7] to-emerald-500 p-2.5 rounded-2xl shadow-[0_10px_30px_rgba(71,196,183,0.45)] group-hover:scale-110 group-hover:-translate-y-0.5 transition-transform duration-300">
+                    <div className="absolute inset-0 rounded-2xl bg-white/20 blur-sm opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <ShieldCheck className="text-white w-5 h-5 relative z-10" />
+                  </div>
+                </div>
 
-    {/* Title + subtitle */}
-    <div>
-      <h2 className="text-lg sm:text-xl font-semibold text-slate-900">
-        Create your PayNidhi account
-      </h2>
-      <p className="text-[11px] sm:text-xs text-slate-500 mt-1">
-        Register as a seller or lender. We&apos;ll verify your email with an OTP.
-      </p>
-    </div>
-  </div>
-</div>
+                <div>
+                  <h2 className="text-lg sm:text-xl font-semibold text-slate-900">
+                    Create your PayNidhi account
+                  </h2>
+                  <p className="text-[11px] sm:text-xs text-slate-500 mt-1">
+                    Register as a seller or lender. We'll verify your email with an OTP.
+                  </p>
+                </div>
+              </div>
+            </div>
 
+            
 
-            {/* Mobile login text */}
-            <p className="sm:hidden text-[11px] text-slate-500 mb-3">
-              Already registered?{" "}
-              <button
-                type="button"
-                onClick={() => navigate("/login")}
-                className="text-indigo-500 font-semibold"
-              >
-                Log in
-              </button>
-            </p>
-
-            {/* Seller / Lender toggle */}
-            <div className="flex mb-4 rounded-full bg-slate-100 p-1 max-w">
+            {/* Seller / Lender toggle - Enhanced with #47C4B7 */}
+            <div className="flex mb-4 rounded-full bg-gradient-to-r from-slate-100 to-slate-200 p-1.5 shadow-inner hover:shadow-md transition-all duration-200">
               <button
                 type="button"
                 onClick={() => setMode("seller")}
-                className={`flex-1 text-[11px] sm:text-xs font-semibold py-2 rounded-full transition-colors ${
+                className={`flex-1 text-[11px] sm:text-xs font-semibold py-3 px-3 rounded-full transition-all duration-300 relative overflow-hidden group ${
                   isSeller
-                    ? "bg-white text-slate-900 shadow-sm"
-                    : "text-slate-500 hover:text-slate-700"
+                    ? "bg-white text-slate-900 shadow-md border-2 border-[#47C4B7]/30 hover:scale-105 hover:shadow-lg"
+                    : "text-slate-500 hover:text-[#47C4B7] hover:bg-[#47C4B7]/10 hover:border-[#47C4B7]/20"
                 }`}
               >
                 Seller
@@ -262,32 +234,32 @@ const RegisterPage = () => {
               <button
                 type="button"
                 onClick={() => setMode("lender")}
-                className={`flex-1 text-[11px] sm:text-xs font-semibold py-2 rounded-full transition-colors ${
+                className={`flex-1 text-[11px] sm:text-xs font-semibold py-3 px-3 rounded-full transition-all duration-300 relative overflow-hidden group ${
                   !isSeller
-                    ? "bg-white text-slate-900 shadow-sm"
-                    : "text-slate-500 hover:text-slate-700"
+                    ? "bg-white text-slate-900 shadow-md border-2 border-emerald-400/30 hover:scale-105 hover:shadow-lg"
+                    : "text-slate-500 hover:text-[#47C4B7] hover:bg-[#47C4B7]/10 hover:border-[#47C4B7]/20"
                 }`}
               >
                 Lender
               </button>
             </div>
 
-            {/* Avatar row */}
-            <div className="flex flex-wrap items-center gap-4 mb-4">
-              <div className="h-10 w-10 rounded-full border border-slate-300 bg-slate-50 overflow-hidden">
+            {/* Avatar row - Enhanced with #47C4B7 */}
+            <div className="flex flex-wrap items-center gap-4 mb-4 p-4 bg-gradient-to-r from-slate-50/80 to-slate-100/80 rounded-xl border border-[#47C4B7]/20 hover:border-[#47C4B7]/40 hover:shadow-md transition-all duration-200">
+              <div className={`h-12 w-12 rounded-full border-2 border-slate-300 overflow-hidden shadow-sm transition-all hover:scale-110 hover:border-[#47C4B7]/60 ${avatarPreview ? 'border-[#47C4B7]/50 shadow-[#47C4B7]/10' : ''}`}>
                 {avatarPreview ? (
                   <img
                     src={avatarPreview}
                     alt="Avatar preview"
-                    className="h-full w-full object-cover"
+                    className="h-full w-full object-cover hover:scale-110 transition-transform duration-200"
                   />
                 ) : (
-                  <div className="h-full w-full flex items-center justify-center text-[10px] text-slate-400">
+                  <div className="h-full w-full flex items-center justify-center text-[10px] text-slate-400 bg-gradient-to-br from-[#47C4B7]/10 to-emerald-500/10">
                     Logo
                   </div>
                 )}
               </div>
-              <div className="flex flex-col gap-1">
+              <div className="flex flex-col gap-1 flex-1 min-w-0">
                 <label className="text-[11px] font-semibold text-slate-700">
                   Business logo (optional)
                 </label>
@@ -295,7 +267,7 @@ const RegisterPage = () => {
                   type="file"
                   accept="image/*"
                   onChange={handleAvatarChange}
-                  className="text-[11px] text-slate-500"
+                  className="text-[11px] text-slate-500 file:mr-3 file:px-3 file:py-1.5 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-[#47C4B7]/90 file:text-white hover:file:bg-[#47C4B7] transition-colors"
                 />
                 <p className="text-[10px] text-slate-400">
                   PNG / JPG, up to 2MB. You can update this later.
@@ -304,14 +276,14 @@ const RegisterPage = () => {
             </div>
 
             {error && (
-              <div className="mb-3 text-xs sm:text-sm text-red-500 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+              <div className="mb-3 text-xs sm:text-sm text-red-500 bg-gradient-to-r from-red-50 to-rose-50 border border-red-100 rounded-lg px-3 py-2 shadow-sm">
                 {error}
               </div>
             )}
 
-            {/* Form – grouped into a few rows so it fits nicely on laptop, stacks on mobile */}
+            {/* Simplified Form - Added #47C4B7 focus states */}
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Shared fields */}
+              {/* Company name + Email */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <label className="block text-[11px] font-semibold text-slate-700">
@@ -323,8 +295,8 @@ const RegisterPage = () => {
                     required
                     value={form.companyName}
                     onChange={handleChange}
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500/70"
-                    placeholder="PayNidhi Pvt Ltd"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#47C4B7]/70 hover:border-slate-300 transition-all duration-200"
+                    placeholder="Enter company name"
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -337,12 +309,13 @@ const RegisterPage = () => {
                     required
                     value={form.email}
                     onChange={handleChange}
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500/70"
-                    placeholder="you@business.in"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#47C4B7]/70 hover:border-slate-300 transition-all duration-200"
+                    placeholder="yourname@company.com"
                   />
                 </div>
               </div>
 
+              {/* Password */}
               <div className="space-y-1.5">
                 <label className="block text-[11px] font-semibold text-slate-700">
                   Password
@@ -353,136 +326,27 @@ const RegisterPage = () => {
                   required
                   value={form.password}
                   onChange={handleChange}
-                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500/70"
-                  placeholder="At least 8 characters"
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#47C4B7]/70 hover:border-slate-300 transition-all duration-200"
+                  placeholder="Enter your password"
                 />
               </div>
 
-              {/* Seller-specific */}
-              {isSeller && (
-                <>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <label className="block text-[11px] font-semibold text-slate-700">
-                        GST Number
-                      </label>
-                      <input
-                        type="text"
-                        name="gstNumber"
-                        required
-                        value={form.gstNumber}
-                        onChange={handleChange}
-                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm"
-                        placeholder="27ABCDE1234F1Z5"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="block text-[11px] font-semibold text-slate-700">
-                        PAN Number
-                      </label>
-                      <input
-                        type="text"
-                        name="panNumber"
-                        required
-                        value={form.panNumber}
-                        onChange={handleChange}
-                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm"
-                        placeholder="ABCDE1234F"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <label className="block text-[11px] font-semibold text-slate-700">
-                        Business type
-                      </label>
-                      <select
-                        name="businessType"
-                        required
-                        value={form.businessType}
-                        onChange={handleChange}
-                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm"
-                      >
-                        <option value="">Select</option>
-                        <option value="Services">Services</option>
-                        <option value="Trading">Trading</option>
-                        <option value="Manufacturing">Manufacturing</option>
-                      </select>
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="block text-[11px] font-semibold text-slate-700">
-                        Industry
-                      </label>
-                      <select
-                        name="industry"
-                        required
-                        value={form.industry}
-                        onChange={handleChange}
-                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm"
-                      >
-                        <option value="">Select</option>
-                        <option value="IT">IT</option>
-                        <option value="Finance">Finance</option>
-                        <option value="Retail">Retail</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="block text-[11px] font-semibold text-slate-700">
-                      Annual turnover (₹)
-                    </label>
-                    <input
-                      type="number"
-                      name="annualTurnover"
-                      value={form.annualTurnover}
-                      onChange={handleChange}
-                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm"
-                      placeholder="0"
-                    />
-                  </div>
-                </>
-              )}
-
-              {/* Lender-specific */}
-              {!isSeller && (
-                <>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <label className="block text-[11px] font-semibold text-slate-700">
-                        Lender type
-                      </label>
-                      <input
-                        type="text"
-                        name="lenderType"
-                        required
-                        value={form.lenderType}
-                        onChange={handleChange}
-                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm"
-                        placeholder="NBFC / Bank / Fintech"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="block text-[11px] font-semibold text-slate-700">
-                        License number
-                      </label>
-                      <input
-                        type="text"
-                        name="lenderLicense"
-                        required
-                        value={form.lenderLicense}
-                        onChange={handleChange}
-                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm"
-                        placeholder="RBI / NBFC license"
-                      />
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {/* Bank + common */}
+              {/* GST Number + Beneficiary Name - Now same style as company name */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="block text-[11px] font-semibold text-slate-700">
+                    GST Number
+                  </label>
+                  <input
+                    type="text"
+                    name="gstNumber"
+                    required
+                    value={form.gstNumber}
+                    onChange={handleChange}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#47C4B7]/70 hover:border-slate-300 transition-all duration-200 uppercase tracking-wider"
+                    placeholder="27ABCDE1234F1Z5"
+                  />
+                </div>
                 <div className="space-y-1.5">
                   <label className="block text-[11px] font-semibold text-slate-700">
                     Beneficiary name
@@ -493,89 +357,99 @@ const RegisterPage = () => {
                     required
                     value={form.beneficiaryName}
                     onChange={handleChange}
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#47C4B7]/70 hover:border-slate-300 transition-all duration-200"
                     placeholder="Account holder name"
                   />
                 </div>
-                <div className="space-y-1.5">
-                  <label className="block text-[11px] font-semibold text-slate-700">
-                    IFSC
-                  </label>
-                  <input
-                    type="text"
-                    name="ifsc"
-                    required
-                    value={form.ifsc}
-                    onChange={handleChange}
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm"
-                    placeholder="HDFC0001234"
-                  />
-                </div>
               </div>
 
+              {/* Business type + Industry */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <label className="block text-[11px] font-semibold text-slate-700">
-                    Account number
+                    Business type
                   </label>
-                  <input
-                    type="text"
-                    name="accountNumber"
+                  <select
+                    name="businessType"
                     required
-                    value={form.accountNumber}
+                    value={form.businessType}
                     onChange={handleChange}
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm"
-                    placeholder="123456789012"
-                  />
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#47C4B7]/70 hover:border-slate-300 transition-all duration-200"
+                  >
+                    <option value="">Select</option>
+                    <option value="Services">Services</option>
+                    <option value="Trading">Trading</option>
+                    <option value="Manufacturing">Manufacturing</option>
+                  </select>
                 </div>
-
-                {!isSeller && (
-                  <div className="space-y-1.5">
-                    <label className="block text-[11px] font-semibold text-slate-700">
-                      Max investment (₹)
-                    </label>
-                    <input
-                      type="number"
-                      name="maxInvestment"
-                      required
-                      value={form.maxInvestment}
-                      onChange={handleChange}
-                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm"
-                      placeholder="50000000"
-                    />
-                  </div>
-                )}
-              </div>
-
-              {!isSeller && (
                 <div className="space-y-1.5">
                   <label className="block text-[11px] font-semibold text-slate-700">
-                    Registered address
+                    Industry
                   </label>
-                  <input
-                    type="text"
-                    name="address"
+                  <select
+                    name="industry"
                     required
-                    value={form.address}
+                    value={form.industry}
                     onChange={handleChange}
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm"
-                    placeholder="Registered office address"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#47C4B7]/70 hover:border-slate-300 transition-all duration-200"
+                  >
+                    <option value="">Select</option>
+                    <option value="IT">IT</option>
+                    <option value="Finance">Finance</option>
+                    <option value="Retail">Retail</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Annual turnover - Added ₹ prefix */}
+              <div className="space-y-1.5 relative">
+                <label className="block text-[11px] font-semibold text-slate-700">
+                  Annual turnover (₹)
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#47C4B7] font-bold text-sm">₹</span>
+                  <input
+                    type="number"
+                    name="annualTurnover"
+                    value={form.annualTurnover}
+                    onChange={handleChange}
+                    className="w-full pl-8 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#47C4B7]/70 hover:border-slate-300 transition-all duration-200"
+                    placeholder="0"
                   />
                 </div>
-              )}
+              </div>
 
               <button
                 type="submit"
-                className="w-full mt-1 inline-flex justify-center items-center rounded-xl bg-slate-900 text-white text-sm font-semibold py-2.5 shadow-[0_14px_30px_rgba(15,23,42,0.45)] hover:bg-slate-800 active:scale-95 transition-all"
+                disabled={isLoading}
+                className="w-full mt-1 inline-flex justify-center items-center rounded-xl bg-gradient-to-r from-[#47C4B7] to-emerald-500 text-white text-sm font-semibold py-2.5 shadow-[0_14px_30px_rgba(71,196,183,0.45)] hover:shadow-[0_20px_40px_rgba(71,196,183,0.6)] hover:scale-[1.02] active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed transition-all duration-300 group"
               >
-                Continue & verify email
+                {isLoading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
+                    Sending...
+                  </>
+                ) : (
+                  "Continue & verify email"
+                )}
               </button>
+              {/* Mobile login text */}
+            <p className="sm:hidden text-[11px] text-slate-500 mb-3">
+              Already registered?{" "}
+              <button
+                type="button"
+                onClick={() => navigate("/login")}
+                className="text-[#47C4B7] font-semibold hover:text-[#47C4B7]/80 transition-colors"
+              >
+                Log in
+              </button>
+            </p>
               <div className="hidden sm:block text-[11px] text-slate-500">
                 Already have an account?{" "}
                 <button
                   type="button"
                   onClick={() => navigate("/login")}
-                  className="text-indigo-500 font-semibold hover:text-indigo-600"
+                  className="text-[#47C4B7] font-semibold hover:text-[#47C4B7]/80  px-2 py-1 rounded-lg hover:bg-[#47C4B7]/20 transition-all duration-200"
                 >
                   Log in
                 </button>
@@ -584,6 +458,16 @@ const RegisterPage = () => {
           </div>
         </section>
       </div>
+
+      <style jsx>{`
+        @keyframes bounce-slow {
+          0%, 100% { transform: translateY(0) scale(1); }
+          50% { transform: translateY(-10px) scale(1.02); }
+        }
+        .animate-bounce-slow {
+          animation: bounce-slow 4s ease-in-out infinite;
+        }
+      `}</style>
     </div>
   );
 };

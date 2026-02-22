@@ -75,12 +75,14 @@ export const requestOtp = async ({ email, purpose }) => {
 };
 
 export const verifyOtp = async (body) => {
-  // body: { email, code, purpose, mode, payload? }
+  const isFormData = body instanceof FormData;
+
   const res = await fetch(`${API_BASE_URL}/auth/verify-otp`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     credentials: "include",
-    body: JSON.stringify(body),
+    headers: isFormData ? undefined : { "Content-Type": "application/json" },
+    body: isFormData ? body : JSON.stringify(body),
   });
+
   return handleJson(res);
 };
