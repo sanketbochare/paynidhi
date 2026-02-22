@@ -2,7 +2,6 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import fs from "fs";
 
 // Helper: Convert file to Gemini-readable format
-// (This can stay outside because it doesn't use environment variables)
 function fileToGenerativePart(path, mimeType) {
   return {
     inlineData: {
@@ -14,13 +13,10 @@ function fileToGenerativePart(path, mimeType) {
 
 export const extractInvoiceData = async (filePath) => {
   try {
-    // ✅ MOVED INSIDE: Initialize Gemini here! 
-    // By the time this function is called, dotenv has fully loaded the variables.
     const apiKey = (process.env.GEMINI_API_KEY || "").trim();
     const genAI = new GoogleGenerativeAI(apiKey);
     
-    // 🔴 UPDATE: Changed from 'gemini-1.5-flash' to 'gemini-2.0-flash'
-    // If '2.0' fails, try 'gemini-1.5-flash-latest'
+    // ✅ Fixed the model version to 2.0
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     const prompt = `
@@ -30,6 +26,7 @@ export const extractInvoiceData = async (filePath) => {
       Return ONLY the JSON. Do not add markdown formatting (like \`\`\`json).
 
       Required Fields:
+      
       1. invoice_number (String)
       2. po_number (String or null if missing)
       3. invoice_date (ISO Date String YYYY-MM-DD)
@@ -39,10 +36,11 @@ export const extractInvoiceData = async (filePath) => {
       7. buyer_name (String)
       8. total_amount (Number - Remove currency symbols)
       9. buyer_email (String or null)
-      10. items_summary (String - A short summary of what was sold, e.g., "Industrial Sensors")
+      10. items_summary (String - A short summary of what was sold)
+      11. irn (String - The 64-character alphanumeric Invoice Reference Number. If not found, return null)
 
       If any field is missing or unreadable, set it to null.
-      Ensure high accuracy for GSTINs and Amounts.
+      Ensure high accuracy for GSTINs, IRN, and Amounts.
     `;
 
     const filePart = fileToGenerativePart(filePath, "application/pdf");
