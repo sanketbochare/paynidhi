@@ -3,6 +3,8 @@ import { extractInvoiceData } from "../services/gemini.service.js"; // Ensure th
 import { verifyInvoiceRules } from "../services/verification.service.js"; // Ensure this file exists
 import fs from "fs";
 import MockGovtInvoice from "../models/MockGovtInvoice.model.js"
+import jwt from "jsonwebtoken"
+import { sendInvoiceVerificationMailToBuyer } from "../utils/email.utils.js";
 
 // ==========================================
 // 1. UPLOAD & SCAN INVOICE
@@ -135,3 +137,92 @@ export const getSellerInvoices = async (req, res) => {
     res.status(500).json({ error: "Server Error" });
   }
 };
+
+
+const generateUniqueMailToken = (userId, invoiceId) => {
+  return jwt.sign({ userId, invoiceId }, process.env.JWT_SECRET, {
+    expiresIn: "7d",
+  });
+};
+
+
+export const verifyInvoiceBuyerWithEmail = async (req, res) => {
+    console.log("Invoice Verification Started...");
+
+   try {
+    const invoiceId = req.query.invoiceId;
+    const user = req.user;
+
+    if(!invoiceId) {
+      console.error("Invoice Id required");
+      return res.status(404).json({success: false, message: "Invoice Id required"})
+    }
+
+    const invoice = await Invoice.findById(invoiceId)
+    if(invoice) {
+      console.log("Invoice found In Database...");
+        console.log(invoice.seller, " - ", user._id)
+      if(invoice.seller.toString() == user._id.toString()) {
+        console.log("Invoice Seller confirmed");
+        console.log("sending verification mail to buyer: ", invoice.buyerEmail);
+
+
+        const token = generateUniqueMailToken(user._id.toString(), invoiceId.toString())
+        sendInvoiceVerificationMailToBuyer({ to: invoice.buyerEmail, token: token});
+
+      } else {
+        console.log("seller does not match with invoice");
+        return res.status(404).json({success: false, message: "seller does not match with invoice"});
+      }
+    } else {
+      console.error("Invoice not found with id: ", invoiceId);
+      return res.status(404).json({success: false, message: "Invoice not found"})
+    }
+
+    return res.status(300).json({success: false, message:"work in progress"});
+
+   } catch (error) {
+      console.log("unexpected error in invoice verification : \n", error);
+      return res.status(500).json({success: false, message: error.message});
+   }
+}
+
+export const verifyInvoice = async (req, res) => {
+  console.log("verifying invoice...")
+  try {
+    
+    const token = req.query.token;
+    const isVerified = req.query.verify;
+    
+    
+    if(!token || token.length < 10) {
+      console.error("Token is required")
+      return res.status(401).json({success: false, message: "Authorization token required"})
+    }
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    const invoice = await Invoice.findById(decoded.invoiceId);
+    if(!invoice) {
+      console.error("Invoice not found...")
+      return res.status(404).json({success: false, message: "Invoice not found"});
+    }
+
+    if(isVerified == "true") {
+      invoice.status = "Verified";
+      await invoice.save();
+      console.log("Updated Invoice Status: ", invoice.status);
+      return res.status(200).json({success: true, message: "Invoice status updated to verified"})
+    } else {
+      console.log("Inovice is not verified by buyer");
+      return res.status(400).json({success: false, message: "Invoice dismissed by buyer"})
+    }
+
+
+  } catch (error) {
+    console.log("Error in invoice verification: ", error);
+    return res.status(500).json({success: false, message: error.message});
+  }
+
+
+
+}

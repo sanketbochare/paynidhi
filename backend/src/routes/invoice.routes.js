@@ -5,6 +5,8 @@ import {
   getAllInvoices, 
   getInvoiceById,
   getSellerInvoices,
+  verifyInvoiceBuyerWithEmail,
+  verifyInvoice
 } from "../controllers/invoice.controller.js"; // 👈 Imports logic from Controller
 import { protect, authorize } from "../middleware/auth.middleware.js";
 
@@ -31,14 +33,14 @@ router.post(
 
 // Endpoint: GET /api/invoice
 router.get(
-  "/", 
+  "/all-invoices", 
   protect, 
   getAllInvoices
 );
 
-// Endpoint: GET /api/invoice/:id
+// route: api/invoice/verify-invoice
 router.get(
-  "/:id", 
+  "/get-invoice/:id", 
   protect, 
   getInvoiceById
 );
@@ -50,5 +52,12 @@ router.get(
   authorize("seller"),
   getSellerInvoices
 );
+
+router.post(
+  "/verify-buyer",
+  protect,
+  authorize("seller"),
+  verifyInvoiceBuyerWithEmail
+)
 
 export default router;
