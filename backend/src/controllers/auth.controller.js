@@ -1,4 +1,5 @@
 // backend/src/controllers/auth.controller.js
+import MockRBIDatabase from "../models/MockRBIDatabase.model.js";
 import Seller from "../models/Seller.model.js";
 import Lender from "../models/Lender.model.js";
 import MockCompany from "../models/MockCompany.model.js";
@@ -145,32 +146,93 @@ export const loginSeller = async (req, res) => {
 };
 
 // REGISTER LENDER (simplified similarly)
+// ... inside auth.controller.js ...
+
+// REGISTER LENDER
 export const registerLender = async (req, res) => {
   try {
     const {
       email,
       password,
       companyName,
+      gstNumber,       // 👈 Added GSTIN
       lenderType,
       lenderLicense,
     } = req.body;
 
-    const lenderExists = await Lender.findOne({ email });
-    if (lenderExists) {
-      return res.status(400).json({ error: "Lender already exists" });
+    // 1. Basic validation
+    if (!email || !password || !companyName || !lenderType) {
+      return res.status(400).json({ error: "Missing required fields" });
     }
 
+    // ==========================================
+    // 🛡️ WALL 3: RBI REGULATORY SHIELD (Corporate Only)
+    // ==========================================
+    if (["Bank", "NBFC", "Institutional"].includes(lenderType)) {
+      if (!lenderLicense || !gstNumber) {
+        return res.status(400).json({ 
+          error: "Corporate lenders must provide a GSTIN and an RBI License Number." 
+        });
+      }
+
+      console.log(`🔍 Verifying RBI License for: ${lenderLicense}`);
+      const rbiRecord = await MockRBIDatabase.findOne({ licenseNumber: lenderLicense });
+
+      // Check A: Does the license exist?
+      if (!rbiRecord) {
+        return res.status(400).json({ 
+          error: "Verification Failed: RBI License Number not found in official registry." 
+        });
+      }
+
+      // Check B: Is the license cancelled?
+      if (rbiRecord.status !== "Active") {
+        return res.status(403).json({ 
+          error: `Regulatory Alert: This RBI License is currently marked as '${rbiRecord.status}'. Registration blocked.` 
+        });
+      }
+
+      // Check C: Does the GSTIN match the RBI records?
+      if (rbiRecord.gstin.toLowerCase() !== gstNumber.toLowerCase()) {
+        return res.status(400).json({ 
+          error: "Verification Failed: Provided GSTIN does not match the RBI registry for this license." 
+        });
+      }
+
+      console.log("✅ RBI Verification Passed!");
+    }
+    // ==========================================
+
+    // 2. Email duplicate check
+    const lenderExists = await Lender.findOne({ email });
+    if (lenderExists) {
+      return res.status(400).json({ error: "Email already registered as Lender" });
+    }
+
+    // 3. GSTIN duplicate check (Only if they provided one, e.g., corporate lenders)
+    let gstHash = null;
+    if (gstNumber) {
+      gstHash = hashField(gstNumber);
+      const isGstNumDuplicate = await Lender.findOne({ gstHash });
+      if (isGstNumDuplicate) {
+        return res.status(400).json({ error: "GST Number already registered to another Lender" });
+      }
+    }
+
+    // 4. Create Lender
     const lender = await Lender.create({
       email,
       password,
       companyName,
+      gstNumber,       // Handled by pre-save hook
+      gstHash,         // Required for duplicate checks
       lenderType,
       lenderLicense,
       isOnboarded: false,
       kycStatus: "partial",
       totalCreditLimit: 0,
       utilizedLimit: 0,
-      escrowBalance: 0,
+      walletBalance: 0, // 👈 Using the new wallet field
     });
 
     if (lender) {
@@ -185,7 +247,7 @@ export const registerLender = async (req, res) => {
         avatarUrl: lender.avatarUrl || "",
         isOnboarded: lender.isOnboarded,
         kycStatus: lender.kycStatus,
-        message: "Lender registered successfully. Complete KYC to get started.",
+        message: "Lender registered successfully. Complete KYC to start investing.",
       });
     }
   } catch (error) {
@@ -307,6 +369,7 @@ export const requestOtp = async (req, res) => {
 };
 
 //  Verify OTP and finalize (UPDATED FOR SIMPLIFIED REGISTRATION)
+// Verify OTP and finalize (UPDATED FOR LENDER RBI SHIELD)
 export const verifyOtp = async (req, res) => {
   try {
     const { email, code, purpose, mode } = req.body;
@@ -340,9 +403,11 @@ export const verifyOtp = async (req, res) => {
       }
 
       if (mode === "seller") {
-        // ONLY these fields are used at registration
+        // ==========================================
+        // SELLER CREATION LOGIC
+        // ==========================================
         const {
-          email: payloadEmail,          // optional, fallback to req.email
+          email: payloadEmail,          
           password,
           companyName,
           gstNumber,
@@ -353,29 +418,22 @@ export const verifyOtp = async (req, res) => {
 
         const finalEmail = payloadEmail || email;
 
-        // basic validation
         if (!finalEmail || !password || !companyName || !gstNumber) {
           return res.status(400).json({ error: "Missing registration fields" });
         }
 
-        // duplicate checks using gstHash
         const gstHash = hashField(gstNumber);
 
         const sellerExists = await Seller.findOne({ email: finalEmail });
         if (sellerExists) {
-          return res
-            .status(400)
-            .json({ error: "Email already registered as seller" });
+          return res.status(400).json({ error: "Email already registered as seller" });
         }
 
         const isGstNumDuplicate = await Seller.findOne({ gstHash });
         if (isGstNumDuplicate) {
-          return res
-            .status(400)
-            .json({ error: "GST Number already registered" });
+          return res.status(400).json({ error: "GST Number already registered" });
         }
 
-        // CREATE SELLER WITH ONLY BASIC FIELDS
         user = await Seller.create({
           email: finalEmail,
           password,
@@ -385,45 +443,86 @@ export const verifyOtp = async (req, res) => {
           businessType: businessType || "Services",
           industry: industry || "IT",
           annualTurnover: Number(annualTurnover) || 0,
-          // no beneficiaryName, no bankAccount, no PAN, no Aadhaar here
-          isOnboarded: false,   // KYC pending
-          kycStatus: "partial", // you can keep or change
+          isOnboarded: false,   
+          kycStatus: "partial", 
           avatarUrl,
         });
+
       } else {
-        // lender (keep minimal too if you want)
+        // ==========================================
+        // LENDER CREATION LOGIC + RBI SHIELD
+        // ==========================================
         const {
           email: payloadEmail,
           password,
           companyName,
           lenderType,
           lenderLicense,
+          gstNumber // 👈 Extracting GSTIN from frontend payload
         } = payload || {};
 
         const finalEmail = payloadEmail || email;
 
-        if (!finalEmail || !password || !companyName) {
+        if (!finalEmail || !password || !companyName || !lenderType) {
           return res.status(400).json({ error: "Missing registration fields" });
         }
 
-        const lenderExists = await Lender.findOne({ email: finalEmail });
-        if (lenderExists) {
-          return res
-            .status(400)
-            .json({ error: "Email already registered as lender" });
+        // 🛡️ WALL 3: RBI REGULATORY SHIELD (Corporate Only)
+        if (["Bank", "NBFC", "Institutional"].includes(lenderType)) {
+          if (!lenderLicense || !gstNumber) {
+            return res.status(400).json({ 
+              error: "Corporate lenders must provide a GSTIN and an RBI License Number." 
+            });
+          }
+
+          console.log(`🔍 Verifying RBI License for: ${lenderLicense}`);
+          const rbiRecord = await MockRBIDatabase.findOne({ licenseNumber: lenderLicense });
+
+          if (!rbiRecord) {
+            return res.status(400).json({ error: "Verification Failed: RBI License Number not found in official registry." });
+          }
+
+          if (rbiRecord.status !== "Active") {
+            return res.status(403).json({ error: `Regulatory Alert: This RBI License is currently marked as '${rbiRecord.status}'. Registration blocked.` });
+          }
+
+          if (rbiRecord.gstin.toLowerCase() !== gstNumber.toLowerCase()) {
+            return res.status(400).json({ error: "Verification Failed: Provided GSTIN does not match the RBI registry for this license." });
+          }
+          console.log("✅ RBI Verification Passed!");
         }
 
+        // Duplicate Check: Email
+        const lenderExists = await Lender.findOne({ email: finalEmail });
+        if (lenderExists) {
+          console.log("lender already exist")
+          return res.status(400).json({ error: "Email already registered as lender" });
+        }
+
+        // Duplicate Check: GSTIN
+        let gstHash = null;
+        if (gstNumber) {
+          gstHash = hashField(gstNumber);
+          const isGstNumDuplicate = await Lender.findOne({ gstHash });
+          if (isGstNumDuplicate) {
+            return res.status(400).json({ error: "GST Number already registered to another Lender" });
+          }
+        }
+
+        // Create Lender & Initialize Wallets
         user = await Lender.create({
           email: finalEmail,
           password,
           companyName,
+          gstNumber, 
+          gstHash,   
           lenderType,
           lenderLicense,
           isOnboarded: false,
           kycStatus: "partial",
           totalCreditLimit: 0,
           utilizedLimit: 0,
-          escrowBalance: 0,
+          walletBalance: 0, 
           avatarUrl,
         });
       }
