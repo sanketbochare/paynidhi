@@ -35,7 +35,7 @@ const sellerSchema = new mongoose.Schema(
     },
     industry: {
       type: String,
-      enum: ["Textiles", "IT", "Pharma", "Auto", "FMCG", "Retail"],
+      enum: ["Textiles", "IT", "Pharma", "Auto", "FMCG", "Retail","Finance"],
       default: "IT",
     },
     annualTurnover: { type: Number, default: 0 },

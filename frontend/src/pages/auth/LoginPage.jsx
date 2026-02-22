@@ -79,7 +79,7 @@ const LoginPage = () => {
 
   if (step === 2) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4 py-6 bg-gradient-to-br from-slate-50 via-slate-100 to-slate-200">
+      <div className="min-h-screen flex items-center justify-center px-4 py-6 bg-gradient-to-br from-slate-50 via-slate-100 to-slate-200 relative overflow-hidden">
         <OtpVerifyCard
           email={form.email}
           purpose="login"
@@ -92,93 +92,129 @@ const LoginPage = () => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-4 sm:py-8 bg-gradient-to-br from-slate-50 via-slate-100 to-slate-200">
-      <div className="w-full max-w-5xl grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-10 items-center">
-        {/* Brand / illustration side */}
-        <div className="hidden md:flex flex-col gap-5">
-          <div className="inline-flex items-center gap-3">
+    <div className="min-h-screen flex items-center justify-center px-4 py-6 sm:py-10 bg-gradient-to-br from-slate-50 via-slate-100 to-slate-200 relative overflow-hidden">
+      {/* Animated Background - #47C4B7 color */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-[#47C4B7]/20 rounded-full blur-3xl animate-bounce-slow" />
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-[#47C4B7]/10 rounded-full blur-3xl animate-pulse" />
+      </div>
+
+      <div className="w-full max-w-5xl grid grid-cols-1 md:grid-cols-[1.1fr_1.2fr] gap-6 lg:gap-10 items-stretch relative z-10">
+        
+        {/* Left: mini hero - PayNidhi theme */}
+        <section className="hidden md:flex flex-col gap-5 border border-slate-200 rounded-2xl shadow-md px-6 py-6 hover:shadow-xl transition-all duration-300 hover:border-[#47C4B7]/30 group">
+          <div className="inline-flex items-center gap-3 group/logo">
             <div className="group relative">
-              <div className="relative bg-gradient-to-br from-indigo-600 to-violet-700 p-2.5 rounded-2xl shadow-[0_10px_30px_rgba(79,70,229,0.45)] group-hover:scale-110 group-hover:-translate-y-0.5 transition-transform duration-300">
-                <div className="absolute inset-0 rounded-2xl bg-white/20 blur-sm opacity-0 group-hover:opacity-100 transition-opacity" />
-                <ShieldCheck className="text-white w-6 h-6 relative z-10" />
+              <div className="relative bg-gradient-to-br from-[#47C4B7] to-emerald-500 p-2.5 rounded-2xl shadow-[0_10px_30px_rgba(71,196,183,0.45)] group-hover/logo:scale-110 group-hover/logo:-translate-y-0.5 transition-transform duration-300">
+                <div className="absolute inset-0 rounded-2xl bg-white/20 blur-sm opacity-0 group-hover/logo:opacity-100 transition-opacity" />
+                <ShieldCheck className="text-white w-5 h-5 relative z-10" />
               </div>
             </div>
-            <div className="flex flex-col">
-              <span className="text-xs font-semibold text-slate-800">
+            <div className="flex flex-col leading-tight">
+              <span className="text-sm font-semibold bg-gradient-to-r from-slate-900 to-[#47C4B7] bg-clip-text text-transparent">
                 PayNidhi
               </span>
               <span className="text-[11px] text-slate-500">
-                Secure receivables & credit platform
+                Business Receivables & Credit
               </span>
             </div>
           </div>
 
-          <h1 className="text-2xl sm:text-3xl lg:text-[28px] font-semibold text-slate-900 leading-snug">
+          <h1 className="text-2xl font-semibold text-slate-900 leading-snug group-hover:scale-[1.02] transition-transform duration-300">
             Log in to manage{" "}
-            <span className="text-indigo-600">seller payouts</span> and{" "}
+            <span className="text-[#47C4B7] font-bold">seller payouts</span> and{" "}
             <span className="text-emerald-500">lender credit lines</span>.
           </h1>
 
-          <p className="text-sm text-slate-500 max-w-md">
+          <p className="text-sm text-slate-500 group-hover:text-slate-600 transition-colors">
             Centralized access for founders, finance teams, and lending partners.
             Monitor disbursements, utilization, and settlements in real time.
           </p>
 
           <div className="grid grid-cols-2 gap-3 text-[11px]">
-            <div className="rounded-xl bg-white/95 border border-slate-200 px-3 py-3 shadow-sm">
+            <div className="rounded-xl bg-gradient-to-br from-[#47C4B7]/10 to-emerald-500/10 border border-[#47C4B7]/30 px-3 py-3 shadow-sm hover:scale-105 transition-all duration-200 group/card">
               <div className="text-slate-500 mb-1">Live credit lines</div>
-              <div className="text-lg font-semibold text-slate-900">₹3.2Cr</div>
+              <div className="text-lg font-semibold text-[#47C4B7]">₹3.2Cr</div>
               <div className="text-[10px] text-emerald-500 mt-1">
                 +9% this quarter
               </div>
             </div>
-            <div className="rounded-xl bg-white/95 border border-slate-200 px-3 py-3 shadow-sm flex flex-col justify-between">
+            <div className="rounded-xl bg-slate-50 border border-slate-200 px-3 py-3 shadow-sm flex flex-col justify-between hover:scale-105 transition-all duration-200 group/card">
               <div className="flex items-center justify-between text-[11px] text-slate-500">
-                <span>Settlement SLA</span>
+                <span>On‑time settlements</span>
                 <span>96%</span>
               </div>
               <div className="mt-1 h-1.5 w-full rounded-full bg-slate-100 overflow-hidden">
-                <div className="h-full w-[96%] rounded-full bg-gradient-to-r from-indigo-500 to-emerald-400" />
+                <div className="h-full w-[96%] rounded-full bg-gradient-to-r from-[#47C4B7] to-emerald-400" />
               </div>
               <div className="text-[10px] text-slate-400 mt-1">
-                Paid under 48 hours
+                Under 48 hours SLA
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Login card */}
-        <div className="w-full">
-          <div className="w-full bg-white/95 border border-slate-200 rounded-2xl shadow-xl backdrop-blur-xl px-5 py-6 sm:px-7 sm:py-7">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h2 className="text-lg sm:text-xl font-semibold text-slate-900">
-                  Sign in to PayNidhi
-                </h2>
-                <p className="text-[11px] sm:text-xs text-slate-500">
-                  Use your registered business email. We’ll confirm with OTP.
-                </p>
+          <p className="text-[11px] text-slate-400">
+            By signing in, you agree to PayNidhi's{" "}
+            <span className="text-[#47C4B7] hover:text-[#47C4B7]/80 font-semibold transition-colors cursor-pointer">Terms</span> and{" "}
+            <span className="text-[#47C4B7] hover:text-[#47C4B7]/80 font-semibold transition-colors cursor-pointer">Privacy Policy</span>.
+          </p>
+        </section>
+
+        {/* Right: form - PayNidhi theme */}
+        <section className="w-full">
+          <div className="w-full bg-white/95 border border-slate-200 rounded-2xl shadow-xl backdrop-blur hover:shadow-2xl transition-all duration-300 hover:border-[#47C4B7]/30 px-5 py-6 sm:px-7 sm:py-7">
+            
+            {/* Top row: title + environment badge */}
+            <div className="flex items-start justify-between gap-3 mb-4">
+              <div className="flex items-start gap-3 flex-1">
+                <div className="group relative mt-[2px]">
+                  <div className="relative bg-gradient-to-br from-[#47C4B7] to-emerald-500 p-2.5 rounded-2xl shadow-[0_10px_30px_rgba(71,196,183,0.45)] group-hover:scale-110 group-hover:-translate-y-0.5 transition-transform duration-300">
+                    <div className="absolute inset-0 rounded-2xl bg-white/20 blur-sm opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <ShieldCheck className="text-white w-5 h-5 relative z-10" />
+                  </div>
+                </div>
+
+                <div>
+                  <h2 className="text-lg sm:text-xl font-semibold text-slate-900">
+                    Sign in to PayNidhi
+                  </h2>
+                  <p className="text-[11px] sm:text-xs text-slate-500 mt-1">
+                    Use your registered business email. We'll confirm with OTP.
+                  </p>
+                </div>
               </div>
               <div className="hidden sm:flex flex-col items-end gap-1">
                 <span className="text-[10px] text-slate-400">
                   Environment
                 </span>
                 <span className="inline-flex items-center gap-1 rounded-full bg-slate-50 border border-slate-200 px-2 py-[2px] text-[10px] text-slate-700">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-[#47C4B7]" />
                   Secure · MFA
                 </span>
               </div>
             </div>
 
-            {/* Seller / Lender toggle */}
-            <div className="flex mb-5 rounded-full bg-slate-100 p-1">
+            {/* Mobile register text */}
+            <p className="sm:hidden text-[11px] text-slate-500 mb-3">
+              New to PayNidhi?{" "}
+              <button
+                type="button"
+                onClick={() => navigate("/register")}
+                className="text-[#47C4B7] font-semibold hover:text-[#47C4B7]/80 transition-colors"
+              >
+                Create account
+              </button>
+            </p>
+
+            {/* Seller / Lender toggle - Enhanced with #47C4B7 */}
+            <div className="flex mb-4 rounded-full bg-gradient-to-r from-slate-100 to-slate-200 p-1.5 shadow-inner hover:shadow-md transition-all duration-200">
               <button
                 type="button"
                 onClick={() => setMode("seller")}
-                className={`flex-1 text-[11px] sm:text-xs font-semibold py-2 rounded-full transition-colors ${
+                className={`flex-1 text-[11px] sm:text-xs font-semibold py-3 px-3 rounded-full transition-all duration-300 relative overflow-hidden group ${
                   isSeller
-                    ? "bg-white text-slate-900 shadow-sm"
-                    : "text-slate-500 hover:text-slate-700"
+                    ? "bg-white text-slate-900 shadow-md border-2 border-[#47C4B7]/30 hover:scale-105 hover:shadow-lg"
+                    : "text-slate-500 hover:text-[#47C4B7] hover:bg-[#47C4B7]/10 hover:border-[#47C4B7]/20"
                 }`}
               >
                 Seller
@@ -186,10 +222,10 @@ const LoginPage = () => {
               <button
                 type="button"
                 onClick={() => setMode("lender")}
-                className={`flex-1 text-[11px] sm:text-xs font-semibold py-2 rounded-full transition-colors ${
+                className={`flex-1 text-[11px] sm:text-xs font-semibold py-3 px-3 rounded-full transition-all duration-300 relative overflow-hidden group ${
                   !isSeller
-                    ? "bg-white text-slate-900 shadow-sm"
-                    : "text-slate-500 hover:text-slate-700"
+                    ? "bg-white text-slate-900 shadow-md border-2 border-emerald-400/30 hover:scale-105 hover:shadow-lg"
+                    : "text-slate-500 hover:text-[#47C4B7] hover:bg-[#47C4B7]/10 hover:border-[#47C4B7]/20"
                 }`}
               >
                 Lender
@@ -197,12 +233,14 @@ const LoginPage = () => {
             </div>
 
             {error && (
-              <div className="mb-3 text-xs sm:text-sm text-red-500 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+              <div className="mb-3 text-xs sm:text-sm text-red-500 bg-gradient-to-r from-red-50 to-rose-50 border border-red-100 rounded-lg px-3 py-2 shadow-sm">
                 {error}
               </div>
             )}
 
+            {/* Form - PayNidhi styling */}
             <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Email */}
               <div className="space-y-1.5">
                 <label className="block text-[11px] font-semibold text-slate-700">
                   Work email
@@ -212,12 +250,13 @@ const LoginPage = () => {
                   name="email"
                   value={form.email}
                   onChange={handleChange}
-                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500/70 focus:border-indigo-500/70 placeholder:text-slate-400"
-                  placeholder="finance@yourcompany.in"
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#47C4B7]/70 hover:border-slate-300 transition-all duration-200"
+                  placeholder="yourname@company.com"
                   required
                 />
               </div>
 
+              {/* Password */}
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <label className="block text-[11px] font-semibold text-slate-700">
@@ -225,7 +264,7 @@ const LoginPage = () => {
                   </label>
                   <button
                     type="button"
-                    className="text-[11px] text-indigo-500 hover:text-indigo-600"
+                    className="text-[11px] text-[#47C4B7] hover:text-[#47C4B7]/80 font-semibold transition-colors"
                   >
                     Forgot?
                   </button>
@@ -236,8 +275,8 @@ const LoginPage = () => {
                     name="password"
                     value={form.password}
                     onChange={handleChange}
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 pr-9 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500/70 focus:border-indigo-500/70 placeholder:text-slate-400"
-                    placeholder="••••••••"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 pr-9 text-sm outline-none focus:ring-2 focus:ring-[#47C4B7]/70 hover:border-slate-300 transition-all duration-200"
+                    placeholder="Enter your password"
                     required
                   />
                   <button
@@ -260,9 +299,9 @@ const LoginPage = () => {
                   <input
                     id="remember"
                     type="checkbox"
-                    className="h-3.5 w-3.5 rounded border-slate-300 text-indigo-500 focus:ring-0" required
+                    className="h-3.5 w-3.5 rounded border-slate-300 text-[#47C4B7] focus:ring-2 focus:ring-[#47C4B7]/70"
                   />
-                <label htmlFor="remember" >Keep me signed in</label>
+                  <label htmlFor="remember">Keep me signed in</label>
                 </div>
                 <span className="text-slate-500">
                   OTP will be sent to your email
@@ -271,24 +310,35 @@ const LoginPage = () => {
 
               <button
                 type="submit"
-                className="w-full mt-1 inline-flex justify-center items-center rounded-xl bg-slate-900 text-white text-sm font-semibold py-2.5 shadow-[0_14px_30px_rgba(15,23,42,0.45)] hover:bg-slate-800 active:scale-95 transition-all"
+                className="w-full mt-1 inline-flex justify-center items-center rounded-xl bg-gradient-to-r from-[#47C4B7] to-emerald-500 text-white text-sm font-semibold py-2.5 shadow-[0_14px_30px_rgba(71,196,183,0.45)] hover:shadow-[0_20px_40px_rgba(71,196,183,0.6)] hover:scale-[1.02] active:scale-95 transition-all duration-300 group"
               >
-                Continue with email
+                Continue & verify email
               </button>
+              
+              <div className="hidden sm:block text-[11px] text-slate-500 text-center">
+                New to PayNidhi?{" "}
+                <button
+                  type="button"
+                  onClick={() => navigate("/register")}
+                  className="text-[#47C4B7] font-semibold hover:text-[#47C4B7]/80  px-2 py-1 rounded-lg hover:bg-[#47C4B7]/20 transition-all duration-200"
+                >
+                  Create account
+                </button>
+              </div>
             </form>
-
-            <p className="mt-4 text-[11px] sm:text-xs text-slate-500 text-center">
-              New to PayNidhi?{" "}
-              <span
-                onClick={() => (window.location.href = "/register")}
-                className="text-indigo-500 font-semibold cursor-pointer hover:text-indigo-600"
-              >
-                Create an account
-              </span>
-            </p>
           </div>
-        </div>
+        </section>
       </div>
+
+      <style jsx>{`
+        @keyframes bounce-slow {
+          0%, 100% { transform: translateY(0) scale(1); }
+          50% { transform: translateY(-10px) scale(1.02); }
+        }
+        .animate-bounce-slow {
+          animation: bounce-slow 4s ease-in-out infinite;
+        }
+      `}</style>
     </div>
   );
 };
