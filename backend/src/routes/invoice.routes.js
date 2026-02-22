@@ -60,11 +60,4 @@ router.post(
   verifyInvoiceBuyerWithEmail
 )
 
-// Endpoint: GET /api/invoice/:id
-router.get(
-  "/:id", 
-  protect, 
-  getInvoiceById
-);
-
 export default router;
