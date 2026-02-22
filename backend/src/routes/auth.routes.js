@@ -1,4 +1,3 @@
-// backend/src/routes/auth.routes.js
 import express from "express";
 import {
   registerSeller,
@@ -7,11 +6,13 @@ import {
   loginLender,
   getMe,
   updateAvatar,
+  updateProfile,
   requestOtp,
   verifyOtp,
 } from "../controllers/auth.controller.js";
 import { protect } from "../middleware/auth.middleware.js";
 import { uploadAvatar } from "../middleware/avatarUpload.middleware.js";
+import { upload } from "../middleware/upload.middleware.js"; // ✅ FIXED: Added curly braces
 
 const router = express.Router();
 
@@ -26,12 +27,14 @@ router.post("/login-lender", loginLender);
 // Get current user from cookie
 router.get("/me", protect, getMe);
 
-// Avatar update (URL-based)
+// Avatar & Profile updates
 router.put("/avatar", protect, updateAvatar);
+router.put("/update-profile", protect, updateProfile);
+// ✅ FIXED: Uses uploadAvatar middleware (which allows images) instead of upload (which only allows PDFs)
+router.post("/update-avatar", protect, uploadAvatar, updateAvatar); 
 
 // OTP
 router.post("/request-otp", requestOtp);
-// verify-otp now accepts optional avatar file
 router.post("/verify-otp", uploadAvatar, verifyOtp);
 
 export default router;

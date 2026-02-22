@@ -1,4 +1,3 @@
-// frontend/src/pages/auth/RegisterPage.jsx
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { requestOtp, verifyOtp } from "../../api/authApi";
@@ -204,8 +203,7 @@ const RegisterPage = () => {
                     <ShieldCheck className="text-white w-5 h-5 relative z-10" />
                   </div>
                 </div>
-
-                <div>
+                <div className="flex flex-col leading-tight">
                   <h2 className="text-lg sm:text-xl font-semibold text-slate-900">
                     Create your PayNidhi account
                   </h2>
@@ -215,8 +213,6 @@ const RegisterPage = () => {
                 </div>
               </div>
             </div>
-
-            
 
             {/* Seller / Lender toggle - Enhanced with #47C4B7 */}
             <div className="flex mb-4 rounded-full bg-gradient-to-r from-slate-100 to-slate-200 p-1.5 shadow-inner hover:shadow-md transition-all duration-200">
@@ -331,7 +327,7 @@ const RegisterPage = () => {
                 />
               </div>
 
-              {/* GST Number + Beneficiary Name - Now same style as company name */}
+              {/* GST Number + Beneficiary Name */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <label className="block text-[11px] font-semibold text-slate-700">
@@ -401,7 +397,7 @@ const RegisterPage = () => {
                 </div>
               </div>
 
-              {/* Annual turnover - Added ₹ prefix */}
+              {/* Annual turnover */}
               <div className="space-y-1.5 relative">
                 <label className="block text-[11px] font-semibold text-slate-700">
                   Annual turnover (₹)
@@ -459,7 +455,8 @@ const RegisterPage = () => {
         </section>
       </div>
 
-      <style jsx>{`
+      {/* ✅ FIXED: Replaced style jsx with dangerouslySetInnerHTML */}
+      <style dangerouslySetInnerHTML={{ __html: `
         @keyframes bounce-slow {
           0%, 100% { transform: translateY(0) scale(1); }
           50% { transform: translateY(-10px) scale(1.02); }
@@ -467,7 +464,7 @@ const RegisterPage = () => {
         .animate-bounce-slow {
           animation: bounce-slow 4s ease-in-out infinite;
         }
-      `}</style>
+      `}} />
     </div>
   );
 };

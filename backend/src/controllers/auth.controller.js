@@ -1,13 +1,12 @@
-// backend/src/controllers/auth.controller.js
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 import Seller from "../models/Seller.model.js";
 import Lender from "../models/Lender.model.js";
 import MockCompany from "../models/MockCompany.model.js";
-import jwt from "jsonwebtoken";
-import { hashField } from "../utils/encryption.utils.js";
 import Otp from "../models/Otp.model.js";
+import { hashField } from "../utils/encryption.utils.js";
 import { sendOtpEmail } from "../utils/email.utils.js";
 import { getRandomAvatarUrl } from "../utils/avatar.utils.js";
-
 
 const generateToken = (id, role) => {
   return jwt.sign({ id, role }, process.env.JWT_SECRET, {
@@ -19,75 +18,60 @@ const sendAuthCookie = (res, token) => {
   res.cookie("token", token, {
     httpOnly: true,
     sameSite: "lax",
-    secure: false, // true in production with HTTPS
+    secure: process.env.NODE_ENV === "production", // Automatically handles secure cookies in prod
     path: "/",
     maxAge: 30 * 24 * 60 * 60 * 1000,
   });
 };
 
-// REGISTER SELLER
-// REGISTER SELLER
+// ==========================================
+// SELLER AUTHENTICATION
+// ==========================================
+
 export const registerSeller = async (req, res) => {
-  console.log("seller registration started!!!")
+  console.log("Seller registration started!!!");
   try {
     const {
       email,
       password,
       companyName,
       gstNumber,
-      // panNumber,
-      // bankAccount,
       businessType,
       industry,
       annualTurnover,
-      // beneficiaryName,
     } = req.body;
 
-  
-    console.log("verifying company gstin...")
+    console.log("Verifying company gstin...");
     const verifiedCompany = await MockCompany.findOne({ gstin: gstNumber });
+    
     if (!verifiedCompany) {
       return res.status(400).json({ error: "Registration Failed: GSTIN not found in official Govt records." });
     }
     if (verifiedCompany.companyName.toLowerCase() !== companyName.toLowerCase()) {
       return res.status(400).json({ error: `Registration Failed: GSTIN belongs to '${verifiedCompany.companyName}', not '${companyName}'.` });
     }
-    // ==========================================
-    console.log("gst company verification done!")
+
+    console.log("GST company verification done!");
     const gstHash = hashField(gstNumber);
-    console.log(typeof gstHash);
-    console.log(gstNumber, gstHash);
-    // const panHash = hashField(panNumber);
 
     const sellerExists = await Seller.findOne({ email });
-    // ... the rest of your existing registerSeller logic stays exactly the same ...
     if (sellerExists) {
-      console.log("duplicate seller found (email)")
+      console.log("Duplicate seller found (email)");
       return res.status(400).json({ error: "Email already registered" });
     }
 
     const isGstNumDuplicate = await Seller.findOne({ gstHash: gstHash });
-    console.log("isGstNumDuplicate: ", isGstNumDuplicate);
-    // const isPanNumDuplicate = await Seller.findOne({ panHash });
-
     if (isGstNumDuplicate) {
-      console.log("gst number is duplicate")
+      console.log("GST number is duplicate");
       return res.status(400).json({ error: "GST Number already registered" });
     }
-    // if (isPanNumDuplicate) {
-    //   return res.status(400).json({ error: "PAN Number already registered" });
-    // }
 
-    
     const seller = await Seller.create({
       email,
       password,
       companyName,
       gstNumber,
-      // panNumber,
       gstHash,
-      // panHash,
-      // bankAccount,
       businessType,
       industry,
       annualTurnover: Number(annualTurnover) || 0,
@@ -98,7 +82,7 @@ export const registerSeller = async (req, res) => {
       const token = generateToken(seller._id, "seller");
       sendAuthCookie(res, token);
 
-      console.log("seller created successfully...", seller._id);
+      console.log("Seller created successfully...", seller._id);
       return res.status(201).json({
         _id: seller._id,
         email: seller.email,
@@ -116,7 +100,6 @@ export const registerSeller = async (req, res) => {
   }
 };
 
-// LOGIN SELLER
 export const loginSeller = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -144,16 +127,13 @@ export const loginSeller = async (req, res) => {
   }
 };
 
-// REGISTER LENDER (simplified similarly)
+// ==========================================
+// LENDER AUTHENTICATION
+// ==========================================
+
 export const registerLender = async (req, res) => {
   try {
-    const {
-      email,
-      password,
-      companyName,
-      lenderType,
-      lenderLicense,
-    } = req.body;
+    const { email, password, companyName, lenderType, lenderLicense } = req.body;
 
     const lenderExists = await Lender.findOne({ email });
     if (lenderExists) {
@@ -193,7 +173,6 @@ export const registerLender = async (req, res) => {
   }
 };
 
-// LOGIN LENDER
 export const loginLender = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -221,7 +200,10 @@ export const loginLender = async (req, res) => {
   }
 };
 
-// GET CURRENT USER (enhanced with KYC status)
+// ==========================================
+// USER UTILITIES & SETTINGS
+// ==========================================
+
 export const getMe = async (req, res) => {
   if (!req.user) {
     return res.status(401).json({ error: "Not authenticated" });
@@ -238,26 +220,92 @@ export const getMe = async (req, res) => {
   });
 };
 
-// UPDATE AVATAR
-export const updateAvatar = async (req, res) => {
+export const updateProfile = async (req, res) => {
   try {
-    const { avatarUrl } = req.body;
     if (!req.user) {
       return res.status(401).json({ error: "Not authenticated" });
     }
 
-    let updatedUser;
+    const { companyName, email, annualTurnover, password } = req.body;
+    
+    // Build the update object dynamically
+    let updateData = {
+      companyName,
+      email,
+      annualTurnover: Number(annualTurnover) || 0,
+    };
 
-    if (req.user.businessType) {
+    // If password is provided, hash it before saving
+    if (password && password.trim().length > 0) {
+      const salt = await bcrypt.genSalt(10);
+      updateData.password = await bcrypt.hash(password, salt);
+    }
+
+    let updatedUser;
+    
+    // Check if user is Seller or Lender
+    if (req.user.businessType || req.user.gstNumber) { 
       updatedUser = await Seller.findByIdAndUpdate(
         req.user._id,
-        { avatarUrl: avatarUrl || "" },
+        updateData,
         { new: true }
       ).select("-password");
     } else {
       updatedUser = await Lender.findByIdAndUpdate(
         req.user._id,
-        { avatarUrl: avatarUrl || "" },
+        updateData,
+        { new: true }
+      ).select("-password");
+    }
+
+    if (!updatedUser) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    res.json({
+      _id: updatedUser._id,
+      email: updatedUser.email,
+      companyName: updatedUser.companyName,
+      role: req.user.businessType ? "seller" : "lender",
+      avatarUrl: updatedUser.avatarUrl || "",
+      isOnboarded: updatedUser.isOnboarded,
+      kycStatus: updatedUser.kycStatus,
+      message: "Profile updated successfully",
+    });
+
+  } catch (error) {
+    console.error("Update Profile Error:", error);
+    res.status(500).json({ error: "Failed to update profile details" });
+  }
+};
+
+export const updateAvatar = async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    const avatarFile = req.file; 
+    
+    if (!avatarFile) {
+      return res.status(400).json({ error: "No image file provided" });
+    }
+
+    // Construct the URL path where the file is saved
+    const newAvatarUrl = `/uploads/avatars/${avatarFile.filename}`;
+
+    let updatedUser;
+
+    if (req.user.businessType || req.user.gstNumber) {
+      updatedUser = await Seller.findByIdAndUpdate(
+        req.user._id,
+        { avatarUrl: newAvatarUrl },
+        { new: true }
+      ).select("-password");
+    } else {
+      updatedUser = await Lender.findByIdAndUpdate(
+        req.user._id,
+        { avatarUrl: newAvatarUrl },
         { new: true }
       ).select("-password");
     }
@@ -266,19 +314,22 @@ export const updateAvatar = async (req, res) => {
       _id: updatedUser._id,
       email: updatedUser.email,
       companyName: updatedUser.companyName,
-      role: updatedUser.businessType ? "seller" : "lender",
-      avatarUrl: updatedUser.avatarUrl || "",
-      message: "Avatar updated",
+      avatarUrl: updatedUser.avatarUrl,
+      message: "Avatar updated successfully",
     });
+
   } catch (error) {
+    console.error("Update Avatar Error:", error);
     res.status(500).json({ error: "Failed to update avatar" });
   }
 };
 
-const generateOtpCode = () =>
-  Math.floor(100000 + Math.random() * 900000).toString();
+// ==========================================
+// OTP LOGIC
+// ==========================================
 
-// 1) Request OTP
+const generateOtpCode = () => Math.floor(100000 + Math.random() * 900000).toString();
+
 export const requestOtp = async (req, res) => {
   try {
     const { email, purpose } = req.body;
@@ -290,23 +341,16 @@ export const requestOtp = async (req, res) => {
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
 
     await Otp.deleteMany({ email, purpose, verified: false });
-
     await Otp.create({ email, code, purpose, expiresAt });
-
     await sendOtpEmail({ to: email, code });
 
-    res.json({
-      message: "OTP sent to email",
-      email,
-      purpose,
-    });
+    res.json({ message: "OTP sent to email", email, purpose });
   } catch (error) {
     console.error("OTP request error:", error);
     res.status(500).json({ error: "Failed to send OTP" });
   }
 };
 
-//  Verify OTP and finalize (UPDATED FOR SIMPLIFIED REGISTRATION)
 export const verifyOtp = async (req, res) => {
   try {
     const { email, code, purpose, mode } = req.body;
@@ -340,42 +384,21 @@ export const verifyOtp = async (req, res) => {
       }
 
       if (mode === "seller") {
-        // ONLY these fields are used at registration
-        const {
-          email: payloadEmail,          // optional, fallback to req.email
-          password,
-          companyName,
-          gstNumber,
-          businessType,
-          industry,
-          annualTurnover,
-        } = payload || {};
-
+        const { email: payloadEmail, password, companyName, gstNumber, businessType, industry, annualTurnover } = payload || {};
         const finalEmail = payloadEmail || email;
 
-        // basic validation
         if (!finalEmail || !password || !companyName || !gstNumber) {
           return res.status(400).json({ error: "Missing registration fields" });
         }
 
-        // duplicate checks using gstHash
         const gstHash = hashField(gstNumber);
 
         const sellerExists = await Seller.findOne({ email: finalEmail });
-        if (sellerExists) {
-          return res
-            .status(400)
-            .json({ error: "Email already registered as seller" });
-        }
+        if (sellerExists) return res.status(400).json({ error: "Email already registered as seller" });
 
         const isGstNumDuplicate = await Seller.findOne({ gstHash });
-        if (isGstNumDuplicate) {
-          return res
-            .status(400)
-            .json({ error: "GST Number already registered" });
-        }
+        if (isGstNumDuplicate) return res.status(400).json({ error: "GST Number already registered" });
 
-        // CREATE SELLER WITH ONLY BASIC FIELDS
         user = await Seller.create({
           email: finalEmail,
           password,
@@ -385,21 +408,12 @@ export const verifyOtp = async (req, res) => {
           businessType: businessType || "Services",
           industry: industry || "IT",
           annualTurnover: Number(annualTurnover) || 0,
-          // no beneficiaryName, no bankAccount, no PAN, no Aadhaar here
-          isOnboarded: false,   // KYC pending
-          kycStatus: "partial", // you can keep or change
+          isOnboarded: false,
+          kycStatus: "partial",
           avatarUrl,
         });
       } else {
-        // lender (keep minimal too if you want)
-        const {
-          email: payloadEmail,
-          password,
-          companyName,
-          lenderType,
-          lenderLicense,
-        } = payload || {};
-
+        const { email: payloadEmail, password, companyName, lenderType, lenderLicense } = payload || {};
         const finalEmail = payloadEmail || email;
 
         if (!finalEmail || !password || !companyName) {
@@ -407,11 +421,7 @@ export const verifyOtp = async (req, res) => {
         }
 
         const lenderExists = await Lender.findOne({ email: finalEmail });
-        if (lenderExists) {
-          return res
-            .status(400)
-            .json({ error: "Email already registered as lender" });
-        }
+        if (lenderExists) return res.status(400).json({ error: "Email already registered as lender" });
 
         user = await Lender.create({
           email: finalEmail,
@@ -430,14 +440,10 @@ export const verifyOtp = async (req, res) => {
     } else if (purpose === "login") {
       if (mode === "seller") {
         user = await Seller.findOne({ email });
-        if (!user) {
-          return res.status(400).json({ error: "Seller not found" });
-        }
+        if (!user) return res.status(400).json({ error: "Seller not found" });
       } else {
         user = await Lender.findOne({ email });
-        if (!user) {
-          return res.status(400).json({ error: "Lender not found" });
-        }
+        if (!user) return res.status(400).json({ error: "Lender not found" });
       }
 
       if (!user.avatarUrl) {
@@ -457,14 +463,10 @@ export const verifyOtp = async (req, res) => {
       avatarUrl: user.avatarUrl || "",
       isOnboarded: user.isOnboarded,
       kycStatus: user.kycStatus,
-      message:
-        purpose === "register"
-          ? "Registration complete. Complete KYC to continue."
-          : "Login verified",
+      message: purpose === "register" ? "Registration complete. Complete KYC to continue." : "Login verified",
     });
   } catch (error) {
     console.error("Verify OTP error:", error);
     res.status(500).json({ error: "OTP verification failed" });
   }
 };
-
