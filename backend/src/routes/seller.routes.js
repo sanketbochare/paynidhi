@@ -1,3 +1,4 @@
+// backend/src/routes/seller.routes.js
 import express from "express";
 // Auth Controllers (if you handle seller auth here, otherwise they belong in auth.routes.js)
 import { registerSeller, loginSeller } from "../controllers/auth.controller.js"; 

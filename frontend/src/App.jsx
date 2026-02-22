@@ -15,6 +15,7 @@ import SellerDashboard from "./pages/seller/SellerDashboard";
 import LenderDashboard from "./pages/lender/LenderDashboard";
 import SellerOnboarding from "./pages/seller/SellerOnboarding";
 import LenderOnboarding from "./pages/lender/LenderOnboarding";
+import UploadInvoice from "./pages/seller/UploadInvoice";
 
 import KycPage from "./pages/seller/KycPage";
 import PublicLayout from "./layouts/PublicLayout";
@@ -92,6 +93,7 @@ function App() {
           <Route path="/seller/onboarding" element={<SellerOnboarding />} />
           <Route path="/seller/dashboard" element={<SellerDashboard />} />
           <Route path="/seller/kyc" element={<KycPage />} />
+          <Route path="/seller/invoices" element={<UploadInvoice />} />
         </Route>
 
         {/* Lender protected area (no BackToTop) */}

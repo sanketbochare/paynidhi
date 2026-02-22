@@ -1,3 +1,4 @@
+// frontend/src/components/BackToTop.jsx
 import React from 'react';
 import { motion } from 'framer-motion';
 import { ArrowUpRight } from 'lucide-react';
@@ -37,9 +38,9 @@ const BackToTop = () => {
       className="fixed bottom-6 right-5 sm:bottom-8 sm:right-8 z-40
                  group
                  rounded-full p-[2px]
-                 bg-gradient-to-br from-sky-400 via-emerald-400 to-violet-500
+                 bg-gradient-to-br from-[#47C4B7] via-emerald-500 to-[#47C4B7]
                  shadow-lg shadow-slate-900/40
-                 dark:shadow-sky-900/60"
+                 dark:shadow-slate-900/60"
       aria-label="Back to top"
     >
       {/* inner circle */}
@@ -54,7 +55,7 @@ const BackToTop = () => {
       >
         <ArrowUpRight
           size={18}
-          className="-rotate-90 transition-transform duration-200 group-hover:-translate-y-0.5"
+          className="-rotate-90 transition-transform duration-200 group-hover:-translate-y-0.5 text-[#47C4B7]"
         />
       </motion.div>
     </motion.button>

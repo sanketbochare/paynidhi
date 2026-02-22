@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import SellerNav from "../../components/seller/SellerNav";
 import SellerHeader from "../../components/seller/SellerHeader";
 import SellerFooter from "../../components/seller/SellerFooter";
-import { Plus, ArrowRight, ShieldCheck } from "lucide-react";
+import { ArrowRight, ShieldCheck } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
@@ -17,37 +17,10 @@ import {
 const API_BASE_URL = "http://localhost:5001";
 const PIE_COLORS = ["#4f46e5", "#0ea5e9", "#22c55e", "#e11d48", "#f59e0b"];
 
-// Helper: decide if profile is KYC-complete based on schema fields (excluding avatar)
-const isProfileKycComplete = (user) => {
-  if (!user) return false;
-
-  const hasCompany = !!user.companyName;
-  const hasBusinessType = !!user.businessType;
-  const hasIndustry = !!user.industry;
-  const hasTurnover =
-    typeof user.annualTurnover === "number" && user.annualTurnover > 0;
-
-  const hasPan = !!user.panHash || !!user.panNumber;
-  const hasGst = !!user.gstHash || !!user.gstNumber;
-
-  const bank = user.bankAccount || {};
-  const hasBankAccount =
-    !!bank.accountNumber &&
-    !!bank.ifsc; // beneficiaryName no longer mandatory for "KYC complete"
-
-  return (
-    hasCompany &&
-    hasBusinessType &&
-    hasIndustry &&
-    hasTurnover &&
-    hasPan &&
-    hasGst &&
-    hasBankAccount
-  );
-};
-
 const SellerDashboard = () => {
   const [activeKey, setActiveKey] = useState("overview");
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
+
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -55,6 +28,9 @@ const SellerDashboard = () => {
   const [summary, setSummary] = useState(null);
   const [loadingSummary, setLoadingSummary] = useState(true);
   const [summaryError, setSummaryError] = useState(null);
+
+  // Trust Score Animation State
+  const [animatedScore, setAnimatedScore] = useState(0);
 
   // Recent invoices
   const [invoices, setInvoices] = useState([]);
@@ -68,7 +44,8 @@ const SellerDashboard = () => {
     logout();
   };
 
-  // Simple KYC toast
+  const isKycComplete = !!user && user.isOnboarded && user.kycStatus === "verified";
+
   const showKycToast = useCallback(() => {
     if (kycToastRef.current) {
       toast.dismiss(kycToastRef.current);
@@ -91,28 +68,20 @@ const SellerDashboard = () => {
     );
   }, []);
 
-  // Compute KYC completion status (flag + schema completeness)
-  const isKycCompleteRaw =
-    user?.isOnboarded && user?.kycStatus === "verified";
-  const isKycComplete = isKycCompleteRaw || isProfileKycComplete(user);
-
-  // Show KYC toast once when conditions met
   useEffect(() => {
     if (!user) return;
-    if (!isKycCompleteRaw) {
+    if (!isKycComplete) {
       const timeout = setTimeout(() => {
         showKycToast();
       }, 1000);
       return () => clearTimeout(timeout);
     }
-  }, [isKycCompleteRaw, showKycToast, user]);
+  }, [isKycComplete, showKycToast, user]);
 
-  // Navigate to KYC page
   const navigateToKyc = useCallback(() => {
     navigate("/seller/kyc");
   }, [navigate]);
 
-  // Nav click handler
   const handleNavClick = useCallback(
     (key) => {
       if (!isKycComplete && key !== "overview") {
@@ -121,9 +90,18 @@ const SellerDashboard = () => {
         return;
       }
       setActiveKey(key);
+      setIsMobileOpen(false);
     },
     [isKycComplete, navigateToKyc]
   );
+
+  const handleToggleSidebar = () => {
+    setIsMobileOpen((prev) => !prev);
+  };
+
+  const handleCloseMobile = () => {
+    setIsMobileOpen(false);
+  };
 
   // Fetch dashboard summary
   useEffect(() => {
@@ -158,6 +136,16 @@ const SellerDashboard = () => {
       isMounted = false;
     };
   }, []);
+
+  // Trigger trust score animation when summary data loads
+  useEffect(() => {
+    if (summary?.trustScore) {
+      const timer = setTimeout(() => {
+        setAnimatedScore(summary.trustScore);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [summary?.trustScore]);
 
   // Fetch seller invoices
   useEffect(() => {
@@ -204,21 +192,23 @@ const SellerDashboard = () => {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Fixed sidebar */}
       <SellerNav
         activeKey={activeKey}
         onChange={handleNavClick}
         isKycComplete={isKycComplete}
         navigateToKyc={navigateToKyc}
+        isMobileOpen={isMobileOpen}
+        onCloseMobile={handleCloseMobile}
       />
 
-      {/* Right side: fixed header + footer, scrollable content */}
       <div className="lg:ml-64 flex flex-col max-h-screen">
-        {/* Fixed header */}
-        <SellerHeader onLogout={handleLogout} />
+        <SellerHeader
+          onLogout={handleLogout}
+          onToggleSidebar={handleToggleSidebar}
+        />
 
-        {/* Scrollable content area */}
         <main className="flex-1 overflow-y-auto">
+          {/* ✅ Removed the extra bottom padding here */}
           <div className="w-full max-w-6xl mx-auto px-4 py-6 space-y-6">
             {summaryError && (
               <div className="rounded-xl border border-rose-100 bg-rose-50 px-3 py-2 text-[11px] text-rose-700">
@@ -226,7 +216,7 @@ const SellerDashboard = () => {
               </div>
             )}
 
-            {/* KYC Banner (respects schema-based completeness) */}
+            {/* KYC Banner – only when NOT complete */}
             {!isKycComplete && (
               <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-4 shadow-sm">
                 <div className="flex items-center gap-3">
@@ -252,7 +242,7 @@ const SellerDashboard = () => {
               </div>
             )}
 
-            {/* Stats */}
+            {/* Stats - Colored Themes */}
             <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {loadingSummary ? (
                 <>
@@ -267,11 +257,13 @@ const SellerDashboard = () => {
                     label="Total disbursed"
                     value={formatCurrency(summary.totalFinanced)}
                     helper="+14.2% this month"
+                    theme="emerald"
                   />
                   <StatCard
                     label="Active credit limit"
                     value="₹2.50 Cr"
                     helper="(static for now)"
+                    theme="indigo"
                   />
                   <StatCard
                     label="Invoices under review"
@@ -283,6 +275,7 @@ const SellerDashboard = () => {
                           )} in pipeline`
                         : "No pipeline yet"
                     }
+                    theme="amber"
                   />
                   <StatCard
                     label="Upcoming settlement"
@@ -294,6 +287,7 @@ const SellerDashboard = () => {
                         ? "Due soon"
                         : "No dues today"
                     }
+                    theme="rose"
                   />
                 </>
               ) : null}
@@ -347,7 +341,6 @@ const SellerDashboard = () => {
                   </div>
                 ) : (
                   <div className="border border-slate-100 rounded-xl overflow-hidden">
-                    {/* Invoice table placeholder */}
                     <div className="p-4 text-[11px] text-slate-500 text-center">
                       Invoice list placeholder
                     </div>
@@ -357,40 +350,66 @@ const SellerDashboard = () => {
 
               {/* Right column */}
               <div className="space-y-4">
-                {/* Trust score */}
+                
+                {/* Trust score - Small box with Circular Graph */}
                 <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
                   <h4 className="text-sm font-semibold text-slate-900 mb-1">
                     Trust score
                   </h4>
-                  <p className="text-xs text-slate-500 mb-3">
+                  <p className="text-xs text-slate-500 mb-4">
                     Your reliability signal for lenders on PayNidhi.
                   </p>
+                  
                   {loadingSummary ? (
                     <div className="animate-pulse flex items-center justify-between">
-                      <div className="space-y-2">
-                        <div className="h-6 w-16 bg-slate-100 rounded" />
-                        <div className="h-3 w-20 bg-slate-100 rounded" />
-                      </div>
-                      <div className="h-16 w-16 rounded-full border-4 border-slate-100 bg-slate-50" />
+                      <div className="h-16 w-16 rounded-full border-[6px] border-slate-100 bg-slate-50" />
+                      <div className="h-6 w-16 bg-slate-100 rounded" />
                     </div>
                   ) : summary ? (
                     <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-2xl font-bold text-slate-900">
-                          {summary.trustScore ?? 0}
-                        </p>
-                        <p className="text-[11px] text-slate-400">
+                      <div className="relative flex items-center justify-center">
+                        <svg className="w-16 h-16 transform -rotate-90">
+                          <circle 
+                            cx="32" 
+                            cy="32" 
+                            r="26" 
+                            stroke="#f1f5f9" // slate-100
+                            strokeWidth="6" 
+                            fill="transparent" 
+                          />
+                          <circle 
+                            cx="32" 
+                            cy="32" 
+                            r="26" 
+                            stroke="#10b981" // emerald-500
+                            strokeWidth="6" 
+                            fill="transparent" 
+                            strokeDasharray="163.3" 
+                            strokeDashoffset={163.3 - ((animatedScore ?? 0) / 900) * 163.3} 
+                            className="transition-all duration-1000 ease-out" 
+                            strokeLinecap="round" 
+                          />
+                        </svg>
+                        <div className="absolute flex flex-col items-center justify-center">
+                          <span className="text-lg font-bold text-slate-800 leading-none">
+                            {animatedScore}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col items-end">
+                        <p className="text-[11px] font-medium text-slate-400 mb-1.5">
                           out of 900
                         </p>
-                      </div>
-                      <div className="h-16 w-16 rounded-full border-4 border-indigo-100 flex items-center justify-center bg-indigo-50/40">
-                        <span className="text-[11px] font-semibold text-indigo-600">
-                          Stable
-                        </span>
+                        <div className="px-2 py-1 rounded-md bg-emerald-50 border border-emerald-100 flex items-center justify-center shadow-sm">
+                          <span className="text-[10px] font-semibold text-emerald-600">
+                            Stable
+                          </span>
+                        </div>
                       </div>
                     </div>
                   ) : null}
-                  <button className="mt-3 text-[11px] font-semibold text-indigo-600 hover:text-indigo-700 hover:underline underline-offset-4 transition-colors">
+                  <button className="mt-4 text-[11px] font-semibold text-indigo-600 hover:text-indigo-700 hover:underline underline-offset-4 transition-colors">
                     View how this is calculated
                   </button>
                 </div>
@@ -461,25 +480,57 @@ const SellerDashboard = () => {
           </div>
         </main>
 
-        {/* Fixed footer */}
         <SellerFooter />
       </div>
     </div>
   );
 };
 
-// Helper components
-const StatCard = ({ label, value, helper }) => (
-  <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
-    <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-[0.18em] mb-1">
-      {label}
-    </p>
-    <p className="text-lg sm:text-xl font-bold text-slate-900">
-      {value}
-    </p>
-    <p className="mt-1 text-[11px] text-slate-400">{helper}</p>
-  </div>
-);
+// Stat Card
+const StatCard = ({ label, value, helper, theme = "default" }) => {
+  const themeStyles = {
+    emerald: "bg-emerald-50/60 border-emerald-200",
+    indigo: "bg-indigo-50/60 border-indigo-200",
+    amber: "bg-amber-50/60 border-amber-200",
+    rose: "bg-rose-50/60 border-rose-200",
+    default: "bg-white border-slate-200"
+  };
+  
+  const helperColor = {
+    emerald: "text-emerald-600",
+    indigo: "text-indigo-600",
+    amber: "text-amber-600",
+    rose: "text-rose-600",
+    default: "text-slate-400"
+  };
+
+  const valueColor = {
+    emerald: "text-emerald-900",
+    indigo: "text-indigo-900",
+    amber: "text-amber-900",
+    rose: "text-rose-900",
+    default: "text-slate-900"
+  }
+
+  const currentTheme = themeStyles[theme];
+  const currentHelperColor = helperColor[theme];
+  const currentValueColor = valueColor[theme];
+
+  return (
+    <div className={`rounded-2xl p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 border ${currentTheme} relative overflow-hidden`}>
+      <div className={`absolute -bottom-6 -right-6 w-20 h-20 rounded-full opacity-20 blur-2xl transition-opacity duration-500 ${helperColor[theme].replace('text-', 'bg-')}`}></div>
+      <div className="relative z-10">
+        <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-[0.18em] mb-1">
+          {label}
+        </p>
+        <p className={`text-lg sm:text-xl font-bold ${currentValueColor}`}>
+          {value}
+        </p>
+        <p className={`mt-1 text-[11px] font-medium ${currentHelperColor}`}>{helper}</p>
+      </div>
+    </div>
+  );
+};
 
 const StatCardSkeleton = () => (
   <div className="bg-white border border-slate-200 rounded-2xl p-4 animate-pulse">

@@ -1,3 +1,4 @@
+// backend/src/controllers/auth.controller.js
 import Seller from "../models/Seller.model.js";
 import Lender from "../models/Lender.model.js";
 import MockCompany from "../models/MockCompany.model.js";
@@ -305,7 +306,7 @@ export const requestOtp = async (req, res) => {
   }
 };
 
-// 2) Verify OTP and finalize (UPDATED FOR SIMPLIFIED REGISTRATION)
+//  Verify OTP and finalize (UPDATED FOR SIMPLIFIED REGISTRATION)
 export const verifyOtp = async (req, res) => {
   try {
     const { email, code, purpose, mode } = req.body;
@@ -339,61 +340,81 @@ export const verifyOtp = async (req, res) => {
       }
 
       if (mode === "seller") {
+        // ONLY these fields are used at registration
         const {
+          email: payloadEmail,          // optional, fallback to req.email
+          password,
           companyName,
           gstNumber,
           businessType,
           industry,
           annualTurnover,
-          beneficiaryName,
-          password,
-        } = payload;
+        } = payload || {};
 
+        const finalEmail = payloadEmail || email;
+
+        // basic validation
+        if (!finalEmail || !password || !companyName || !gstNumber) {
+          return res.status(400).json({ error: "Missing registration fields" });
+        }
+
+        // duplicate checks using gstHash
         const gstHash = hashField(gstNumber);
 
-        const sellerExists = await Seller.findOne({ email });
+        const sellerExists = await Seller.findOne({ email: finalEmail });
         if (sellerExists) {
-          return res.status(400).json({ error: "Email already registered as seller" });
+          return res
+            .status(400)
+            .json({ error: "Email already registered as seller" });
         }
 
         const isGstNumDuplicate = await Seller.findOne({ gstHash });
         if (isGstNumDuplicate) {
-          return res.status(400).json({ error: "GST Number already registered" });
+          return res
+            .status(400)
+            .json({ error: "GST Number already registered" });
         }
 
+        // CREATE SELLER WITH ONLY BASIC FIELDS
         user = await Seller.create({
-          email,
+          email: finalEmail,
           password,
           companyName,
           gstNumber,
           gstHash,
           businessType: businessType || "Services",
           industry: industry || "IT",
-          annualTurnover: annualTurnover || 0,
-          beneficiaryName,
-          bankAccount: {
-            beneficiaryName,
-          },
-          isOnboarded: false, // KYC pending
-          kycStatus: "partial",
+          annualTurnover: Number(annualTurnover) || 0,
+          // no beneficiaryName, no bankAccount, no PAN, no Aadhaar here
+          isOnboarded: false,   // KYC pending
+          kycStatus: "partial", // you can keep or change
           avatarUrl,
         });
       } else {
-        // lender (simplified)
+        // lender (keep minimal too if you want)
         const {
+          email: payloadEmail,
+          password,
           companyName,
           lenderType,
           lenderLicense,
-          password,
-        } = payload;
+        } = payload || {};
 
-        const lenderExists = await Lender.findOne({ email });
+        const finalEmail = payloadEmail || email;
+
+        if (!finalEmail || !password || !companyName) {
+          return res.status(400).json({ error: "Missing registration fields" });
+        }
+
+        const lenderExists = await Lender.findOne({ email: finalEmail });
         if (lenderExists) {
-          return res.status(400).json({ error: "Email already registered as lender" });
+          return res
+            .status(400)
+            .json({ error: "Email already registered as lender" });
         }
 
         user = await Lender.create({
-          email,
+          email: finalEmail,
           password,
           companyName,
           lenderType,
@@ -436,10 +457,14 @@ export const verifyOtp = async (req, res) => {
       avatarUrl: user.avatarUrl || "",
       isOnboarded: user.isOnboarded,
       kycStatus: user.kycStatus,
-      message: purpose === "register" ? "Registration complete. Complete KYC to continue." : "Login verified",
+      message:
+        purpose === "register"
+          ? "Registration complete. Complete KYC to continue."
+          : "Login verified",
     });
   } catch (error) {
     console.error("Verify OTP error:", error);
     res.status(500).json({ error: "OTP verification failed" });
   }
 };
+
