@@ -1,8 +1,10 @@
+// backend/src/controllers/auth.controller.js
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import Seller from "../models/Seller.model.js";
 import Lender from "../models/Lender.model.js";
 import MockCompany from "../models/MockCompany.model.js";
+import MockRBIDatabase from "../models/MockRBIDatabase.model.js"; // 👈 Our RBI Shield
 import Otp from "../models/Otp.model.js";
 import { hashField } from "../utils/encryption.utils.js";
 import { sendOtpEmail } from "../utils/email.utils.js";
@@ -18,7 +20,7 @@ const sendAuthCookie = (res, token) => {
   res.cookie("token", token, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production", // Automatically handles secure cookies in prod
+    secure: process.env.NODE_ENV === "production", // 👈 Friend's improved cookie logic
     path: "/",
     maxAge: 30 * 24 * 60 * 60 * 1000,
   });
@@ -75,7 +77,8 @@ export const registerSeller = async (req, res) => {
       businessType,
       industry,
       annualTurnover: Number(annualTurnover) || 0,
-      isOnboarded: true,
+      isOnboarded: false, // 👈 Ensures they still need KYC
+      kycStatus: "partial",
     });
 
     if (seller) {
@@ -128,29 +131,63 @@ export const loginSeller = async (req, res) => {
 };
 
 // ==========================================
-// LENDER AUTHENTICATION
+// LENDER AUTHENTICATION (Our RBI Shield)
 // ==========================================
 
 export const registerLender = async (req, res) => {
   try {
-    const { email, password, companyName, lenderType, lenderLicense } = req.body;
+    const {
+      email,
+      password,
+      companyName,
+      gstNumber,
+      lenderType,
+      lenderLicense,
+    } = req.body;
+
+    if (!email || !password || !companyName || !lenderType) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    // 🛡️ WALL 3: RBI REGULATORY SHIELD
+    if (["Bank", "NBFC", "Institutional"].includes(lenderType)) {
+      if (!lenderLicense || !gstNumber) {
+        return res.status(400).json({ error: "Corporate lenders must provide a GSTIN and an RBI License Number." });
+      }
+
+      console.log(`🔍 Verifying RBI License for: ${lenderLicense}`);
+      const rbiRecord = await MockRBIDatabase.findOne({ licenseNumber: lenderLicense });
+
+      if (!rbiRecord) return res.status(400).json({ error: "Verification Failed: RBI License Number not found." });
+      if (rbiRecord.status !== "Active") return res.status(403).json({ error: `Regulatory Alert: License '${rbiRecord.status}'. Blocked.` });
+      if (rbiRecord.gstin.toLowerCase() !== gstNumber.toLowerCase()) return res.status(400).json({ error: "Verification Failed: GSTIN mismatch." });
+      
+      console.log("✅ RBI Verification Passed!");
+    }
 
     const lenderExists = await Lender.findOne({ email });
-    if (lenderExists) {
-      return res.status(400).json({ error: "Lender already exists" });
+    if (lenderExists) return res.status(400).json({ error: "Email already registered as Lender" });
+
+    let gstHash = null;
+    if (gstNumber) {
+      gstHash = hashField(gstNumber);
+      const isGstNumDuplicate = await Lender.findOne({ gstHash });
+      if (isGstNumDuplicate) return res.status(400).json({ error: "GST Number already registered to another Lender" });
     }
 
     const lender = await Lender.create({
       email,
       password,
       companyName,
+      gstNumber, 
+      gstHash,   
       lenderType,
       lenderLicense,
       isOnboarded: false,
       kycStatus: "partial",
       totalCreditLimit: 0,
       utilizedLimit: 0,
-      escrowBalance: 0,
+      walletBalance: 0, 
     });
 
     if (lender) {
@@ -165,7 +202,7 @@ export const registerLender = async (req, res) => {
         avatarUrl: lender.avatarUrl || "",
         isOnboarded: lender.isOnboarded,
         kycStatus: lender.kycStatus,
-        message: "Lender registered successfully. Complete KYC to get started.",
+        message: "Lender registered successfully. Complete KYC to start investing.",
       });
     }
   } catch (error) {
@@ -201,13 +238,11 @@ export const loginLender = async (req, res) => {
 };
 
 // ==========================================
-// USER UTILITIES & SETTINGS
+// USER UTILITIES & SETTINGS (Friend's Additions)
 // ==========================================
 
 export const getMe = async (req, res) => {
-  if (!req.user) {
-    return res.status(401).json({ error: "Not authenticated" });
-  }
+  if (!req.user) return res.status(401).json({ error: "Not authenticated" });
 
   res.json({
     _id: req.user._id,
@@ -222,20 +257,16 @@ export const getMe = async (req, res) => {
 
 export const updateProfile = async (req, res) => {
   try {
-    if (!req.user) {
-      return res.status(401).json({ error: "Not authenticated" });
-    }
+    if (!req.user) return res.status(401).json({ error: "Not authenticated" });
 
     const { companyName, email, annualTurnover, password } = req.body;
     
-    // Build the update object dynamically
     let updateData = {
       companyName,
       email,
       annualTurnover: Number(annualTurnover) || 0,
     };
 
-    // If password is provided, hash it before saving
     if (password && password.trim().length > 0) {
       const salt = await bcrypt.genSalt(10);
       updateData.password = await bcrypt.hash(password, salt);
@@ -243,24 +274,14 @@ export const updateProfile = async (req, res) => {
 
     let updatedUser;
     
-    // Check if user is Seller or Lender
-    if (req.user.businessType || req.user.gstNumber) { 
-      updatedUser = await Seller.findByIdAndUpdate(
-        req.user._id,
-        updateData,
-        { new: true }
-      ).select("-password");
+    // 👈 FIX: Strictly check businessType to avoid confusing corporate Lenders with Sellers
+    if (req.user.businessType) { 
+      updatedUser = await Seller.findByIdAndUpdate(req.user._id, updateData, { new: true }).select("-password");
     } else {
-      updatedUser = await Lender.findByIdAndUpdate(
-        req.user._id,
-        updateData,
-        { new: true }
-      ).select("-password");
+      updatedUser = await Lender.findByIdAndUpdate(req.user._id, updateData, { new: true }).select("-password");
     }
 
-    if (!updatedUser) {
-      return res.status(404).json({ error: "User not found" });
-    }
+    if (!updatedUser) return res.status(404).json({ error: "User not found" });
 
     res.json({
       _id: updatedUser._id,
@@ -272,7 +293,6 @@ export const updateProfile = async (req, res) => {
       kycStatus: updatedUser.kycStatus,
       message: "Profile updated successfully",
     });
-
   } catch (error) {
     console.error("Update Profile Error:", error);
     res.status(500).json({ error: "Failed to update profile details" });
@@ -281,33 +301,19 @@ export const updateProfile = async (req, res) => {
 
 export const updateAvatar = async (req, res) => {
   try {
-    if (!req.user) {
-      return res.status(401).json({ error: "Not authenticated" });
-    }
+    if (!req.user) return res.status(401).json({ error: "Not authenticated" });
 
     const avatarFile = req.file; 
     
-    if (!avatarFile) {
-      return res.status(400).json({ error: "No image file provided" });
-    }
+    if (!avatarFile) return res.status(400).json({ error: "No image file provided" });
 
-    // Construct the URL path where the file is saved
     const newAvatarUrl = `/uploads/avatars/${avatarFile.filename}`;
-
     let updatedUser;
 
-    if (req.user.businessType || req.user.gstNumber) {
-      updatedUser = await Seller.findByIdAndUpdate(
-        req.user._id,
-        { avatarUrl: newAvatarUrl },
-        { new: true }
-      ).select("-password");
+    if (req.user.businessType) {
+      updatedUser = await Seller.findByIdAndUpdate(req.user._id, { avatarUrl: newAvatarUrl }, { new: true }).select("-password");
     } else {
-      updatedUser = await Lender.findByIdAndUpdate(
-        req.user._id,
-        { avatarUrl: newAvatarUrl },
-        { new: true }
-      ).select("-password");
+      updatedUser = await Lender.findByIdAndUpdate(req.user._id, { avatarUrl: newAvatarUrl }, { new: true }).select("-password");
     }
 
     res.json({
@@ -317,7 +323,6 @@ export const updateAvatar = async (req, res) => {
       avatarUrl: updatedUser.avatarUrl,
       message: "Avatar updated successfully",
     });
-
   } catch (error) {
     console.error("Update Avatar Error:", error);
     res.status(500).json({ error: "Failed to update avatar" });
@@ -333,9 +338,7 @@ const generateOtpCode = () => Math.floor(100000 + Math.random() * 900000).toStri
 export const requestOtp = async (req, res) => {
   try {
     const { email, purpose } = req.body;
-    if (!email || !purpose) {
-      return res.status(400).json({ error: "Email and purpose are required" });
-    }
+    if (!email || !purpose) return res.status(400).json({ error: "Email and purpose are required" });
 
     const code = generateOtpCode();
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
@@ -357,17 +360,11 @@ export const verifyOtp = async (req, res) => {
     const payload = req.body.payload ? JSON.parse(req.body.payload) : null;
     const avatarFile = req.file;
 
-    if (!email || !code || !purpose || !mode) {
-      return res.status(400).json({ error: "Missing fields" });
-    }
+    if (!email || !code || !purpose || !mode) return res.status(400).json({ error: "Missing fields" });
 
     const otpDoc = await Otp.findOne({ email, code, purpose, verified: false });
-    if (!otpDoc) {
-      return res.status(400).json({ error: "Invalid or expired OTP" });
-    }
-    if (otpDoc.expiresAt < new Date()) {
-      return res.status(400).json({ error: "OTP expired" });
-    }
+    if (!otpDoc) return res.status(400).json({ error: "Invalid or expired OTP" });
+    if (otpDoc.expiresAt < new Date()) return res.status(400).json({ error: "OTP expired" });
 
     otpDoc.verified = true;
     await otpDoc.save();
@@ -377,22 +374,15 @@ export const verifyOtp = async (req, res) => {
     let avatarUrl = "";
 
     if (purpose === "register") {
-      if (avatarFile) {
-        avatarUrl = `/uploads/avatars/${avatarFile.filename}`;
-      } else {
-        avatarUrl = getRandomAvatarUrl();
-      }
+      avatarUrl = avatarFile ? `/uploads/avatars/${avatarFile.filename}` : getRandomAvatarUrl();
 
       if (mode === "seller") {
         const { email: payloadEmail, password, companyName, gstNumber, businessType, industry, annualTurnover } = payload || {};
         const finalEmail = payloadEmail || email;
 
-        if (!finalEmail || !password || !companyName || !gstNumber) {
-          return res.status(400).json({ error: "Missing registration fields" });
-        }
+        if (!finalEmail || !password || !companyName || !gstNumber) return res.status(400).json({ error: "Missing registration fields" });
 
         const gstHash = hashField(gstNumber);
-
         const sellerExists = await Seller.findOne({ email: finalEmail });
         if (sellerExists) return res.status(400).json({ error: "Email already registered as seller" });
 
@@ -408,32 +398,54 @@ export const verifyOtp = async (req, res) => {
           businessType: businessType || "Services",
           industry: industry || "IT",
           annualTurnover: Number(annualTurnover) || 0,
-          isOnboarded: false,
-          kycStatus: "partial",
+          isOnboarded: false,   
+          kycStatus: "partial", 
           avatarUrl,
         });
+
       } else {
-        const { email: payloadEmail, password, companyName, lenderType, lenderLicense } = payload || {};
+        // 🛡️ LENDER REGISTRATION (Our RBI Logic)
+        const { email: payloadEmail, password, companyName, lenderType, lenderLicense, gstNumber } = payload || {};
         const finalEmail = payloadEmail || email;
 
-        if (!finalEmail || !password || !companyName) {
-          return res.status(400).json({ error: "Missing registration fields" });
+        if (!finalEmail || !password || !companyName || !lenderType) return res.status(400).json({ error: "Missing registration fields" });
+
+        if (["Bank", "NBFC", "Institutional"].includes(lenderType)) {
+          if (!lenderLicense || !gstNumber) return res.status(400).json({ error: "Corporate lenders must provide a GSTIN and an RBI License Number." });
+
+          console.log(`🔍 Verifying RBI License for: ${lenderLicense}`);
+          const rbiRecord = await MockRBIDatabase.findOne({ licenseNumber: lenderLicense });
+
+          if (!rbiRecord) return res.status(400).json({ error: "Verification Failed: RBI License not found." });
+          if (rbiRecord.status !== "Active") return res.status(403).json({ error: `Regulatory Alert: License is '${rbiRecord.status}'.` });
+          if (rbiRecord.gstin.toLowerCase() !== gstNumber.toLowerCase()) return res.status(400).json({ error: "Verification Failed: GSTIN mismatch." });
+          
+          console.log("✅ RBI Verification Passed!");
         }
 
         const lenderExists = await Lender.findOne({ email: finalEmail });
         if (lenderExists) return res.status(400).json({ error: "Email already registered as lender" });
 
+        let gstHash = null;
+        if (gstNumber) {
+          gstHash = hashField(gstNumber);
+          const isGstNumDuplicate = await Lender.findOne({ gstHash });
+          if (isGstNumDuplicate) return res.status(400).json({ error: "GST Number already registered to another Lender" });
+        }
+
         user = await Lender.create({
           email: finalEmail,
           password,
           companyName,
+          gstNumber, 
+          gstHash,   
           lenderType,
           lenderLicense,
           isOnboarded: false,
           kycStatus: "partial",
           totalCreditLimit: 0,
           utilizedLimit: 0,
-          escrowBalance: 0,
+          walletBalance: 0, // 👈 Using proper wallet schema instead of escrow
           avatarUrl,
         });
       }
