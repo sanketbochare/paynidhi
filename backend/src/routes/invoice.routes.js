@@ -33,16 +33,17 @@ router.post(
 
 // Endpoint: GET /api/invoice
 router.get(
-  "/invoice-all", 
+  "/all-invoices", 
   protect, 
   getAllInvoices
 );
 
 // route: api/invoice/verify-invoice
 router.get(
-  "/verify-invoice", 
-  verifyInvoice
-)
+  "/get-invoice/:id", 
+  protect, 
+  getInvoiceById
+);
 
 // GET /api/invoice/my
 router.get(
